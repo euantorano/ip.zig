@@ -2,6 +2,7 @@ const std = @import("std");
 const debug = std.debug;
 const mem = std.mem;
 const builtin = @import("builtin");
+const fmt = std.fmt;
 const testing = std.testing;
 
 const IpV4Address = struct {
@@ -134,6 +135,15 @@ const IpV4Address = struct {
     pub fn to_host_byte_order(self: Self) u32 {
         return mem.readVarInt(u32, self.address, builtin.Endian.Big);
     }
+
+    /// Formats the IP Address using the given format string and context.
+    ///
+    /// This is used by the `std.fmt` module to format an IP Address within a format string.
+    pub fn format(self: Self, comptime formatString: []const u8, context: var,
+        comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void
+    ) Errors!void {
+        return fmt.format(context, Errors, output, "{}.{}.{}.{}", self.address[0], self.address[1], self.address[2], self.address[3]);
+    }
 };
 
 test "IpV4Address.from_slice()" {
@@ -217,6 +227,19 @@ test "IpV4Address.to_host_byte_order()" {
 
 test "IpV4Address.from_host_byte_order()" {
     testing.expect(IpV4Address.from_host_byte_order(0x0d0c0b0a).equals(IpV4Address.init(13, 12, 11, 10)));
+}
+
+test "IpV4Address.format()" {
+    var buffer: [24]u8 = undefined;
+    const buf = buffer[0..];
+
+    const addr = IpV4Address.init(13, 12, 11, 10);
+
+    const result = try fmt.bufPrint(buf, "address: {}", addr);
+
+    const expected: []const u8 = "address: 13.12.11.10";
+
+    testing.expect(mem.eql(u8, result, expected));
 }
 
 const IpV6Address = struct {
