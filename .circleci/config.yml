@@ -1,0 +1,32 @@
+version: 2.1
+jobs:
+  test_stable:
+    docker:
+      - image: euantorano/zig:latest
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - run:
+          name: run tests
+          command: |
+            zig build test
+  test_master:
+    docker:
+      - image: euantorano/zig:master
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - run:
+          name: run tests
+          command: |
+            zig build test
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - test_stable
+      - test_master
