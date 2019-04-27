@@ -303,6 +303,14 @@ const IpV6Address = struct {
         };
     }
 
+    /// Create an IP Address from a host byte order u128.
+    pub fn from_host_byte_order(ip: u128) Self {
+        var address: [16]u8 = undefined;
+        mem.writeInt(u128, &address, ip, builtin.Endian.Big);
+
+        return Self.from_slice(&address);
+    }
+
     /// Returns the segments of an IP Address as an array of 16 bit integers.
     pub fn segments(self: Self) [8]u16 {
         return [8]u16{
@@ -421,6 +429,11 @@ const IpV6Address = struct {
     pub fn equals(self: Self, other: Self) bool {
         return mem.eql(u8, self.address, other.address);
     }
+
+    /// Returns the IP Address as a host byte order u128.
+    pub fn to_host_byte_order(self: Self) u128 {
+        return mem.readVarInt(u128, self.address, builtin.Endian.Big);
+    }
 };
 
 test "IpV6Address.segments()" {
@@ -532,6 +545,20 @@ test "IpV6Address.to_ipv4()" {
 
 test "IpV6Address.equals()" {
     testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1).equals(IpV6Address.Localhost) == true);
+}
+
+test "IpV6Address.to_host_byte_order()" {
+    const addr = IpV6Address.init(0x1020, 0x3040, 0x5060, 0x7080, 0x90A0, 0xB0C0, 0xD0E0, 0xF00D);
+    const expected: u128 = 0x102030405060708090A0B0C0D0E0F00D;
+
+    testing.expect(addr.to_host_byte_order() == expected);
+}
+
+test "IpV6Address.from_host_byte_order()" {
+    const a: u128 = 0x102030405060708090A0B0C0D0E0F00D;
+    const addr = IpV6Address.from_host_byte_order(a);
+
+    testing.expect(addr.equals(IpV6Address.init(0x1020, 0x3040, 0x5060, 0x7080, 0x90A0, 0xB0C0, 0xD0E0, 0xF00D)));
 }
 
 const IpAddress = union {
