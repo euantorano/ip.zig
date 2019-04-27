@@ -255,25 +255,13 @@ const Ipv6MulticastScope = enum {
 const IpV6Address = struct {
     const Self = @This();
 
-    pub const Localhost = Self.init_from_u16(0, 0, 0, 0, 0, 0, 0, 1);
-    pub const Unspecified = Self.init_from_u16(0, 0, 0, 0, 0, 0, 0, 0);
+    pub const Localhost = Self.init(0, 0, 0, 0, 0, 0, 0, 1);
+    pub const Unspecified = Self.init(0, 0, 0, 0, 0, 0, 0, 0);
 
     address: [16]u8,
 
-    /// Create an IP Address with the given octets.
-    pub fn init(a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8, 
-        i: u8, j: u8, k: u8, l: u8, m: u8, n: u8, o: u8, p: u8
-    ) Self {
-        return Self {
-            .address = [16]u8{
-                a, b, c, d, e, f, g, h,
-                i, j, k, l, m, n, o, p,
-            },
-        };
-    }
-
     /// Create an IP Address with the given 16 bit segments.
-    pub fn init_from_u16(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16,
+    pub fn init(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16,
         g: u17, h: u16
     ) Self {
         return Self {
@@ -297,10 +285,14 @@ const IpV6Address = struct {
         debug.assert(address.len == 16);
 
         return Self.init(
-            address[0], address[1], address[2], address[3], address[4],
-            address[5], address[6], address[7], address[8], address[9],
-            address[10], address[11], address[12], address[13], address[14],
-            address[15]
+            mem.readVarInt(u16, address[0..2], builtin.Endian.Big),
+            mem.readVarInt(u16, address[2..4], builtin.Endian.Big),
+            mem.readVarInt(u16, address[4..6], builtin.Endian.Big),
+            mem.readVarInt(u16, address[6..8], builtin.Endian.Big),
+            mem.readVarInt(u16, address[8..10], builtin.Endian.Big),
+            mem.readVarInt(u16, address[10..12], builtin.Endian.Big),
+            mem.readVarInt(u16, address[12..14], builtin.Endian.Big),
+            mem.readVarInt(u16, address[14..16], builtin.Endian.Big)
         );
     }
 
@@ -405,12 +397,36 @@ const IpV6Address = struct {
             !self.is_unique_local() and !self.is_unspecified() and
             !self.is_documentation();
     }
+
+    /// Returns this IP Address as an IPv4 address if it is an IPv4 compatible or IPv4 mapped address.
+    pub fn to_ipv4(self: Self) ?IpV4Address {
+        if (!mem.allEqual(u8, self.address[0..10], 0)) {
+            return null;
+        }
+
+        if (self.address[10] == 0 and self.address[11] == 0 or
+            self.address[10] == 0xff and self.address[11] == 0xff) {
+            return IpV4Address.init(
+                self.address[12],
+                self.address[13],
+                self.address[14],
+                self.address[15]
+            );
+        }
+
+        return null;
+    }
+
+    /// Returns whether an IP Address is equal to another.
+    pub fn equals(self: Self, other: Self) bool {
+        return mem.eql(u8, self.address, other.address);
+    }
 };
 
 test "IpV6Address.segments()" {
     testing.expectEqual(
         [8]u16{0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff},
-        IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).segments()
+        IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).segments()
     );
 }
 
@@ -419,67 +435,103 @@ test "IpV6Address.octets()" {
         0, 0, 0, 0, 0, 0, 0, 0 ,0, 0,
         0xff, 0xff, 0xc0, 0x0a, 0x02, 0xff,
     };
-    const ip = IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff);
+    const ip = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff);
     
     testing.expectEqual(expected, ip.octets());
 }
 
+test "IpV6Address.from_slice()" {
+    var arr = [16]u8 {
+        0, 0, 0, 0, 0, 0, 0, 0 ,0, 0,
+        0xff, 0xff, 0xc0, 0x0a, 0x02, 0xff,
+    };
+    const ip = IpV6Address.from_slice(&arr);
+
+    testing.expectEqual(
+        [8]u16{0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff},
+        ip.segments()
+    );
+}
+
 test "IpV6Address.is_unspecified()" {
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0, 0, 0).is_unspecified() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unspecified() == false);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0).is_unspecified() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unspecified() == false);
 }
 
 test "IpV6Address.is_loopback()" {
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0, 0, 0x1).is_loopback() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_loopback() == false);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1).is_loopback() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_loopback() == false);
 }
 
 test "IpV6Address.is_multicast()" {
-    testing.expect(IpV6Address.init_from_u16(0xff00, 0, 0, 0, 0, 0, 0, 0).is_multicast() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast() == false);
+    testing.expect(IpV6Address.init(0xff00, 0, 0, 0, 0, 0, 0, 0).is_multicast() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast() == false);
 }
 
 test "IpV6Address.is_documentation()" {
-    testing.expect(IpV6Address.init_from_u16(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0).is_documentation() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_documentation() == false);
+    testing.expect(IpV6Address.init(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0).is_documentation() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_documentation() == false);
 }
 
 test "IpV6Address.is_multicast_link_local()" {
-    testing.expect(IpV6Address.init(0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02).is_multicast_link_local() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast_link_local() == false);
+    var arr = []u8{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02};
+
+    testing.expect(IpV6Address.from_slice(&arr).is_multicast_link_local() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast_link_local() == false);
 }
 
 test "IpV6Address.is_unicast_site_local()" {
-    testing.expect(IpV6Address.init_from_u16(0xfec2, 0, 0, 0, 0, 0, 0, 0).is_unicast_site_local() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_site_local() == false);
+    testing.expect(IpV6Address.init(0xfec2, 0, 0, 0, 0, 0, 0, 0).is_unicast_site_local() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_site_local() == false);
 }
 
 test "IpV6Address.is_unicast_link_local()" {
-    testing.expect(IpV6Address.init_from_u16(0xfe8a, 0, 0, 0, 0, 0, 0, 0).is_unicast_link_local() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_link_local() == false);
+    testing.expect(IpV6Address.init(0xfe8a, 0, 0, 0, 0, 0, 0, 0).is_unicast_link_local() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_link_local() == false);
 }
 
 test "IpV6Address.is_unique_local()" {
-    testing.expect(IpV6Address.init_from_u16(0xfc02, 0, 0, 0, 0, 0, 0, 0).is_unique_local() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unique_local() == false);
+    testing.expect(IpV6Address.init(0xfc02, 0, 0, 0, 0, 0, 0, 0).is_unique_local() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unique_local() == false);
 }
 
 test "IpV6Address.multicast_scope()" {
-    const scope = IpV6Address.init_from_u16(0xff0e, 0, 0, 0, 0, 0, 0, 0).multicast_scope() orelse unreachable;
+    const scope = IpV6Address.init(0xff0e, 0, 0, 0, 0, 0, 0, 0).multicast_scope() orelse unreachable;
 
     testing.expect(scope == Ipv6MulticastScope.Global);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).multicast_scope() == null);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).multicast_scope() == null);
 }
 
 test "IpV6Address.is_globally_routable()" {
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_globally_routable() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0x1c9, 0, 0, 0xafc8, 0, 0x1).is_globally_routable() == true);
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0, 0, 0x1).is_globally_routable() == false);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_globally_routable() == true);
+    testing.expect(IpV6Address.init(0, 0, 0x1c9, 0, 0, 0xafc8, 0, 0x1).is_globally_routable() == true);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1).is_globally_routable() == false);
 }
 
 test "IpV6Address.is_unicast_global()" {
-    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_global() == true);
-    testing.expect(IpV6Address.init_from_u16(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0).is_unicast_global() == false);
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_global() == true);
+    testing.expect(IpV6Address.init(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0).is_unicast_global() == false);
+}
+
+test "IpV6Address.to_ipv4()" {
+    const firstAddress = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).to_ipv4() orelse unreachable;
+    const secondAddress = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1).to_ipv4() orelse unreachable;
+
+    testing.expect(
+        firstAddress.equals(
+            IpV4Address.init(192, 10, 2, 255)
+        )
+    );
+    testing.expect(
+        secondAddress.equals(
+            IpV4Address.init(0, 0, 0, 1)
+        )
+    );
+    testing.expect(IpV6Address.init(0xff00, 0, 0, 0, 0, 0, 0, 0).to_ipv4() == null);
+}
+
+test "IpV6Address.equals()" {
+    testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1).equals(IpV6Address.Localhost) == true);
 }
 
 const IpAddress = union {
