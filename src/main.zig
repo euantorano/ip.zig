@@ -161,7 +161,7 @@ test "IpV4Address.from_array()" {
 }
 
 test "IpV4Address.octets()" {
-    testing.expectEqual(IpV4Address.init(127, 0, 0, 1).octets(), []u8{127, 0, 0, 1});
+    testing.expectEqual([]u8{127, 0, 0, 1}, IpV4Address.init(127, 0, 0, 1).octets());
 }
 
 test "IpV4Address.is_unspecified()" {
@@ -241,6 +241,16 @@ test "IpV4Address.format()" {
 
     testing.expect(mem.eql(u8, result, expected));
 }
+
+const Ipv6MulticastScope = enum {
+    InterfaceLocal,
+    LinkLocal,
+    RealmLocal,
+    AdminLocal,
+    SiteLocal,
+    OrganizationLocal,
+    Global,
+};
 
 const IpV6Address = struct {
     const Self = @This();
@@ -332,7 +342,7 @@ const IpV6Address = struct {
 
     /// Returns whether an IP Address is a multicast address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
     pub fn is_multicast(self: Self) bool {
-        // TODO: implement
+        return self.address[0] == 0xff and self.address[1] & 0x00 == 0;
     }
 
     /// Returns whether an IP Adress is a documentation address as defined by [IETF RFC 3849](https://tools.ietf.org/html/rfc3849).
@@ -340,17 +350,78 @@ const IpV6Address = struct {
         return self.address[0] == 32 and self.address[1] == 1 and
             self.address[2] == 13 and self.address[3] == 184;
     }
+
+    /// Returns whether an IP Address is a multicast and link local address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
+    pub fn is_multicast_link_local(self: Self) bool {
+        return self.address[0] == 0xff and self.address[1] & 0x0f == 0x02;
+    }
+
+    /// Returns whether an IP Address is a deprecated unicast site-local address.
+    pub fn is_unicast_site_local(self: Self) bool {
+        return self.address[0] == 0xfe and self.address[1] & 0xc0 == 0xc0;
+    }
+
+    /// Returns whether an IP Address is a multicast and link local address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
+    pub fn is_unicast_link_local(self: Self) bool {
+        return self.address[0] == 0xfe and self.address[1] & 0xc0 == 0x80;
+    }
+
+    /// Returns whether an IP Address is a unique local address as defined by [IETF RFC 4193](https://tools.ietf.org/html/rfc4193).
+    pub fn is_unique_local(self: Self) bool {
+        return self.address[0] & 0xfe == 0xfc;
+    }
+
+    /// Returns the multicast scope for an IP Address if it is a multicast address.
+    pub fn multicast_scope(self: Self) ?Ipv6MulticastScope {
+        if (!self.is_multicast()) {
+            return null;
+        }
+
+        const anded = self.address[1] & 0x0f;
+
+        return switch (self.address[1] & 0x0f) {
+            1 => Ipv6MulticastScope.InterfaceLocal,
+            2 => Ipv6MulticastScope.LinkLocal,
+            3 => Ipv6MulticastScope.RealmLocal,
+            4 => Ipv6MulticastScope.AdminLocal,
+            5 => Ipv6MulticastScope.SiteLocal,
+            8 => Ipv6MulticastScope.OrganizationLocal,
+            14 => Ipv6MulticastScope.Global,
+            else => null,
+        };
+    }
+
+    /// Returns whether an IP Address is a globally routable address.
+    pub fn is_globally_routable(self: Self) bool {
+        const scope = self.multicast_scope() orelse return self.is_unicast_global();
+
+        return scope == Ipv6MulticastScope.Global;
+    }
+
+    /// Returns whether an IP Address is a globally routable unicast address.
+    pub fn is_unicast_global(self: Self) bool {
+        return !self.is_multicast() and !self.is_loopback() and 
+            !self.is_unicast_link_local() and !self.is_unicast_site_local() and
+            !self.is_unique_local() and !self.is_unspecified() and
+            !self.is_documentation();
+    }
 };
 
 test "IpV6Address.segments()" {
     testing.expectEqual(
-        IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).segments(), 
-        [8]u16{0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff}
+        [8]u16{0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff},
+        IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).segments()
     );
 }
 
 test "IpV6Address.octets()" {
-    //testing.expectEqual(IpV4Address.init(127, 0, 0, 1).octets(), []u8{127, 0, 0, 1});
+    const expected = [16]u8 {
+        0, 0, 0, 0, 0, 0, 0, 0 ,0, 0,
+        0xff, 0xff, 0xc0, 0x0a, 0x02, 0xff,
+    };
+    const ip = IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff);
+    
+    testing.expectEqual(expected, ip.octets());
 }
 
 test "IpV6Address.is_unspecified()" {
@@ -363,9 +434,52 @@ test "IpV6Address.is_loopback()" {
     testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_loopback() == false);
 }
 
+test "IpV6Address.is_multicast()" {
+    testing.expect(IpV6Address.init_from_u16(0xff00, 0, 0, 0, 0, 0, 0, 0).is_multicast() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast() == false);
+}
+
 test "IpV6Address.is_documentation()" {
     testing.expect(IpV6Address.init_from_u16(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0).is_documentation() == true);
     testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_documentation() == false);
+}
+
+test "IpV6Address.is_multicast_link_local()" {
+    testing.expect(IpV6Address.init(0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02).is_multicast_link_local() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast_link_local() == false);
+}
+
+test "IpV6Address.is_unicast_site_local()" {
+    testing.expect(IpV6Address.init_from_u16(0xfec2, 0, 0, 0, 0, 0, 0, 0).is_unicast_site_local() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_site_local() == false);
+}
+
+test "IpV6Address.is_unicast_link_local()" {
+    testing.expect(IpV6Address.init_from_u16(0xfe8a, 0, 0, 0, 0, 0, 0, 0).is_unicast_link_local() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_link_local() == false);
+}
+
+test "IpV6Address.is_unique_local()" {
+    testing.expect(IpV6Address.init_from_u16(0xfc02, 0, 0, 0, 0, 0, 0, 0).is_unique_local() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unique_local() == false);
+}
+
+test "IpV6Address.multicast_scope()" {
+    const scope = IpV6Address.init_from_u16(0xff0e, 0, 0, 0, 0, 0, 0, 0).multicast_scope() orelse unreachable;
+
+    testing.expect(scope == Ipv6MulticastScope.Global);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).multicast_scope() == null);
+}
+
+test "IpV6Address.is_globally_routable()" {
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_globally_routable() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0x1c9, 0, 0, 0xafc8, 0, 0x1).is_globally_routable() == true);
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0, 0, 0x1).is_globally_routable() == false);
+}
+
+test "IpV6Address.is_unicast_global()" {
+    testing.expect(IpV6Address.init_from_u16(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_unicast_global() == true);
+    testing.expect(IpV6Address.init_from_u16(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0).is_unicast_global() == false);
 }
 
 const IpAddress = union {
