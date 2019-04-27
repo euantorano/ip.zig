@@ -406,6 +406,17 @@ const IpV6Address = struct {
             !self.is_documentation();
     }
 
+    /// Returns whether an IP Address is IPv4 compatible.
+    pub fn is_ipv4_compatible(self: Self) bool {
+        return mem.allEqual(u8, self.address[0..12], 0);
+    }
+
+    /// Returns whether an IP Address is IPv4 mapped.
+    pub fn is_ipv4_mapped(self: Self) bool {
+        return mem.allEqual(u8, self.address[0..10], 0) and 
+            self.address[10] == 0xff and self.address[11] == 0xff;
+    }
+
     /// Returns this IP Address as an IPv4 address if it is an IPv4 compatible or IPv4 mapped address.
     pub fn to_ipv4(self: Self) ?IpV4Address {
         if (!mem.allEqual(u8, self.address[0..10], 0)) {
@@ -433,6 +444,44 @@ const IpV6Address = struct {
     /// Returns the IP Address as a host byte order u128.
     pub fn to_host_byte_order(self: Self) u128 {
         return mem.readVarInt(u128, self.address, builtin.Endian.Big);
+    }
+
+    /// Formats the IP Address using the given format string and context.
+    ///
+    /// This is used by the `std.fmt` module to format an IP Address within a format string.
+    pub fn format(self: Self, comptime formatString: []const u8, context: var,
+        comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void
+    ) Errors!void {
+        if (mem.allEqual(u8, self.address, 0)) {
+            return fmt.format(context, Errors, output, "::");
+        } else if (mem.allEqual(u8, self.address[0..14], 0) and self.address[15] == 1) {
+            return fmt.format(context, Errors, output, "::1");
+        } else if (self.is_ipv4_compatible()) {
+            return fmt.format(
+                context, 
+                Errors, 
+                output, 
+                "::{}.{}.{}.{}",
+                self.address[12],
+                self.address[13],
+                self.address[14],
+                self.address[15]
+            );
+        } else if (self.is_ipv4_mapped()) {
+            return fmt.format(
+                context, 
+                Errors, 
+                output, 
+                "::ffff:{}.{}.{}.{}",
+                self.address[12],
+                self.address[13],
+                self.address[14],
+                self.address[15]
+            );
+        } else {
+            // TODO
+            return fmt.format(context, Errors, output, "{}.{}.{}.{}", self.address[0], self.address[1], self.address[2], self.address[3]);
+        }
     }
 };
 
@@ -559,6 +608,30 @@ test "IpV6Address.from_host_byte_order()" {
     const addr = IpV6Address.from_host_byte_order(a);
 
     testing.expect(addr.equals(IpV6Address.init(0x1020, 0x3040, 0x5060, 0x7080, 0x90A0, 0xB0C0, 0xD0E0, 0xF00D)));
+}
+
+fn test_format_ipv6_address(address: IpV6Address, expected: []const u8) !void {
+    var buffer: [1024]u8 = undefined;
+    const buf = buffer[0..];
+
+    const result = try fmt.bufPrint(buf, "{}", address);
+
+    testing.expect(mem.eql(u8, result, expected));
+}
+
+test "IpV6Address.format()" {
+    try test_format_ipv6_address(
+        IpV6Address.Unspecified,
+        "::"
+    );
+    try test_format_ipv6_address(
+        IpV6Address.Localhost,
+        "::1"
+    );
+    try test_format_ipv6_address(
+        IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+        "::ffff:192.10.2.255"
+    );
 }
 
 const IpAddress = union {
