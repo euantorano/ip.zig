@@ -715,6 +715,10 @@ test "IpV6Address.format()" {
         IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348),
         "2001:db8:85a3:8d3:1319:8a2e:370:7348"
     );
+    try test_format_ipv6_address(
+        IpV6Address.init(0x001, 0, 0, 0, 0, 0, 0, 0),
+        "1::"
+    );
 }
 
 const IpAddressType = enum {
@@ -728,6 +732,7 @@ const IpAddress = union(IpAddressType) {
     V4: IpV4Address,
     V6: IpV6Address,
 
+    /// Returns whether the IP Address is an IPv4 address.
     pub fn is_ipv4(self: Self) bool {
         return switch (self) {
             .V4 => true,
@@ -735,10 +740,85 @@ const IpAddress = union(IpAddressType) {
         };
     }
 
+    /// Returns whether the IP Address is an IPv6 address.
     pub fn is_ipv6(self: Self) bool {
         return switch (self) {
             .V6 => true,
             else => false,
+        };
+    }
+
+    /// Returns whether an IP Address is an unspecified address.
+    pub fn is_unspecified(self: Self) bool {
+        return switch (self) {
+            .V4 => |a| a.is_unspecified(),
+            .V6 => |a| a.is_unspecified(),
+        };
+    }
+
+    /// Returns whether an IP Address is a loopback address.
+    pub fn is_loopback(self: Self) bool {
+        return switch (self) {
+            .V4 => |a| a.is_loopback(),
+            .V6 => |a| a.is_loopback(),
+        };
+    }
+
+    /// Returns whether an IP Address is a multicast address.
+    pub fn is_multicast(self: Self) bool {
+        return switch (self) {
+            .V4 => |a| a.is_multicast(),
+            .V6 => |a| a.is_multicast(),
+        };
+    }
+
+    /// Returns whether an IP Adress is a documentation address.
+    pub fn is_documentation(self: Self) bool {
+        return switch (self) {
+            .V4 => |a| a.is_documentation(),
+            .V6 => |a| a.is_documentation(),
+        };
+    }
+
+    /// Returns whether an IP Address is a globally routable address.
+    pub fn is_globally_routable(self: Self) bool {
+        return switch (self) {
+            .V4 => |a| a.is_globally_routable(),
+            .V6 => |a| a.is_globally_routable(),
+        };
+    }
+
+    /// Returns whether an IP Address is equal to another.
+    pub fn equals(self: Self, other: Self) bool {
+        if (IpAddressType(self) != IpAddressType(other)) {
+            return false;
+        }
+
+        return switch (self) {
+            .V4 => |v4| blk: {
+                break :blk switch (other) {
+                    .V4 => |v41| v4.equals(v41),
+                    else => false,
+                };
+            },
+            .V6 => |v6| blk: {
+                break :blk switch (other) {
+                    .V6 => |v61| v6.equals(v61),
+                    else => false,
+                };
+            },
+        };
+    }
+
+    /// Formats the IP Address using the given format string and context.
+    ///
+    /// This is used by the `std.fmt` module to format an IP Address within a format string.
+    pub fn format(self: Self, comptime formatString: []const u8, context: var,
+        comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void
+    ) Errors!void {
+        return switch (self) {
+            .V4 => |a| a.format(formatString, context, Errors, output),
+            .V6 => |a| a.format(formatString, context, Errors, output),
         };
     }
 };
@@ -759,4 +839,185 @@ test "IpAddress.is_ipv6()" {
 
     testing.expect(ip.is_ipv6() == true);
     testing.expect(ip.is_ipv4() == false);
+}
+
+test "IpAddress.is_unspecified()" {
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(0, 0, 0, 0),
+        }).is_unspecified() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(192, 168, 0, 1),
+        }).is_unspecified() == false
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0),
+        }).is_unspecified() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+        }).is_unspecified() == false
+    );
+}
+
+test "IpAddress.is_loopback()" {
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(127, 0, 0, 1),
+        }).is_loopback() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(192, 168, 0, 1),
+        }).is_loopback() == false
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1),
+        }).is_loopback() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+        }).is_loopback() == false
+    );
+}
+
+test "IpAddress.is_multicast()" {
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(236, 168, 10, 65),
+        }).is_multicast() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(172, 16, 10, 65),
+        }).is_multicast() == false
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0xff00, 0, 0, 0, 0, 0, 0, 0),
+        }).is_multicast() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+        }).is_multicast() == false
+    );
+}
+
+test "IpAddress.is_documentation()" {
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(203, 0, 113, 6),
+        }).is_documentation() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(193, 34, 17, 19),
+        }).is_documentation() == false
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0),
+        }).is_documentation() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+        }).is_documentation() == false
+    );
+}
+
+test "IpAddress.is_globally_routable()" {
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(10, 254, 0, 0),
+        }).is_globally_routable() == false
+    );
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(80, 9, 12, 3),
+        }).is_globally_routable() == true
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+        }).is_globally_routable() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0x1c9, 0, 0, 0xafc8, 0, 0x1),
+        }).is_globally_routable() == true
+    );
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1),
+        }).is_globally_routable() == false
+    );
+}
+
+test "IpAddress.equals()" {
+    testing.expect(
+        (IpAddress{
+            .V4 = IpV4Address.init(127, 0, 0, 1),
+        }).equals(
+            IpAddress{
+                .V4 = IpV4Address.Localhost
+            }
+        ) == true
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1),
+        }).equals(
+            IpAddress{
+                .V6 = IpV6Address.Localhost
+            }
+        ) == true
+    );
+
+    testing.expect(
+        (IpAddress{
+            .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1),
+        }).equals(
+            IpAddress{
+                .V4 = IpV4Address.init(127, 0, 0, 1)
+            }
+        ) == false
+    );
+}
+
+fn test_format_ip_address(address: IpAddress, expected: []const u8) !void {
+    var buffer: [1024]u8 = undefined;
+    const buf = buffer[0..];
+
+    const result = try fmt.bufPrint(buf, "{}", address);
+
+    testing.expect(mem.eql(u8, result, expected));
+}
+
+test "IpAddress.format()" {
+    try test_format_ip_address(
+        IpAddress{
+            .V4 = IpV4Address.init(192, 168, 0, 1),
+        },
+        "192.168.0.1"
+    );        
+    try test_format_ip_address(
+        IpAddress{
+            .V6 = IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348),
+        },
+        "2001:db8:85a3:8d3:1319:8a2e:370:7348"
+    );
 }
