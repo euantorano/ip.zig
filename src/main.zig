@@ -446,6 +446,21 @@ const IpV6Address = struct {
         return mem.readVarInt(u128, self.address, builtin.Endian.Big);
     }
 
+    fn fmt_slice(slice: []const u16, context: var,
+        comptime Errors: type, 
+        output: fn (@typeOf(context), []const u8) Errors!void
+    ) Errors!void {
+        if (slice.len == 0) {
+            return;
+        }
+
+        try fmt.format(context, Errors, output, "{x}", slice[0]);
+
+        for (slice[1..]) |segment| {
+            try fmt.format(context, Errors, output, ":{x}", segment);
+        }
+    }
+
     /// Formats the IP Address using the given format string and context.
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
@@ -479,8 +494,64 @@ const IpV6Address = struct {
                 self.address[15]
             );
         } else {
-            // TODO
-            return fmt.format(context, Errors, output, "{}.{}.{}.{}", self.address[0], self.address[1], self.address[2], self.address[3]);
+            const segs = self.segments();
+
+            var longest_group_of_zero_length: usize = 0;
+            var longest_group_of_zero_at: usize = 0;
+
+            var current_group_of_zero_length: usize = 0;
+            var current_group_of_zero_at: usize = 0;
+
+            for (segs) |segment, index| {
+                if (segment == 0) {
+                    if (current_group_of_zero_length == 0) {
+                        current_group_of_zero_at = index;
+                    }
+
+                    current_group_of_zero_length += 1;
+
+                    if (current_group_of_zero_length > longest_group_of_zero_length) {
+                        longest_group_of_zero_length = current_group_of_zero_length;
+                        longest_group_of_zero_at = current_group_of_zero_at;
+                    }
+                } else {
+                    current_group_of_zero_length = 0;
+                    current_group_of_zero_at = 0;
+                }
+            }
+
+            if (longest_group_of_zero_length > 0) {
+                try IpV6Address.fmt_slice(
+                    segs[0..longest_group_of_zero_at], 
+                    context, 
+                    Errors, 
+                    output
+                );
+
+                try fmt.format(context, Errors, output, "::");
+
+                try IpV6Address.fmt_slice(
+                    segs[longest_group_of_zero_at + longest_group_of_zero_length..], 
+                    context, 
+                    Errors, 
+                    output
+                );
+            } else {
+                return fmt.format(
+                    context, 
+                    Errors, 
+                    output, 
+                    "{x}:{x}:{x}:{x}:{x}:{x}:{x}:{x}", 
+                    segs[0], 
+                    segs[1], 
+                    segs[2], 
+                    segs[3],
+                    segs[4],
+                    segs[5],
+                    segs[6],
+                    segs[7]
+                );
+            }
         }
     }
 };
@@ -629,12 +700,63 @@ test "IpV6Address.format()" {
         "::1"
     );
     try test_format_ipv6_address(
+        IpV6Address.init(0, 0, 0, 0, 0, 0x00, 0xc00a, 0x2ff),
+        "::192.10.2.255"
+    );
+    try test_format_ipv6_address(
         IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
         "::ffff:192.10.2.255"
     );
+    try test_format_ipv6_address(
+        IpV6Address.init(0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334),
+        "2001:db8:85a3::8a2e:370:7334"
+    );
+    try test_format_ipv6_address(
+        IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348),
+        "2001:db8:85a3:8d3:1319:8a2e:370:7348"
+    );
 }
 
-const IpAddress = union {
+const IpAddressType = enum {
+    V4,
+    V6,
+};
+
+const IpAddress = union(IpAddressType) {
+    const Self = @This();
+
     V4: IpV4Address,
     V6: IpV6Address,
+
+    pub fn is_ipv4(self: Self) bool {
+        return switch (self) {
+            .V4 => true,
+            else => false,
+        };
+    }
+
+    pub fn is_ipv6(self: Self) bool {
+        return switch (self) {
+            .V6 => true,
+            else => false,
+        };
+    }
 };
+
+test "IpAddress.is_ipv4()" {
+    const ip = IpAddress{
+        .V4 = IpV4Address.init(192, 168, 0, 1),
+    };
+
+    testing.expect(ip.is_ipv4() == true);
+    testing.expect(ip.is_ipv6() == false);
+}
+
+test "IpAddress.is_ipv6()" {
+    const ip = IpAddress{
+        .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
+    };
+
+    testing.expect(ip.is_ipv6() == true);
+    testing.expect(ip.is_ipv4() == false);
+}
