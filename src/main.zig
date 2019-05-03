@@ -5,6 +5,15 @@ const builtin = @import("builtin");
 const fmt = std.fmt;
 const testing = std.testing;
 
+/// Errors that can occur when parsing an IP Address.
+pub const ParseError = error {
+    InvalidCharacter,
+    TooManyOctets,
+    Overflow,
+    Incomplete,
+};
+
+/// An IPv4 address.
 pub const IpV4Address = struct {
     const Self = @This();
 
@@ -43,6 +52,53 @@ pub const IpV4Address = struct {
         mem.writeInt(u32, &address, ip, builtin.Endian.Big);
 
         return Self.from_slice(&address);
+    }
+
+    /// Oarse an IP Address from a string representation.
+    pub fn parse(buf: []const u8) ParseError!Self {
+        var octs: [4]u8 = []u8{0} ** 4;
+
+        var octets_index: usize = 0;
+        var any_digits: bool = false;
+
+        for (buf) |b| {
+            switch (b) {
+                '.' => {
+                    if (!any_digits) {
+                        return ParseError.InvalidCharacter;
+                    }
+
+                    if (octets_index >= 3) {
+                        return ParseError.TooManyOctets;
+                    }
+
+                    octets_index += 1;
+                    any_digits = false;
+                },
+                '0'...'9' => {
+                    any_digits = true;
+
+                    const digit = b - '0';
+
+                    if (@mulWithOverflow(u8, octs[octets_index], 10, &octs[octets_index])) {
+                        return ParseError.Overflow;
+                    }
+
+                    if (@addWithOverflow(u8, octs[octets_index], digit, &octs[octets_index])) {
+                        return ParseError.Overflow;
+                    }
+                },
+                else => {
+                    return ParseError.InvalidCharacter;
+                },
+            }
+        }
+
+        if (octets_index != 3 or !any_digits) {
+            return ParseError.Incomplete;
+        }
+
+        return Self.from_array(octs);
     }
 
     /// Returns the octets of an IP Address as an array of bytes.

@@ -3,8 +3,7 @@ const mem = std.mem;
 const fmt = std.fmt;
 const testing = std.testing;
 
-const i = @import("ip");
-const IpV4Address = i.IpV4Address;
+use @import("ip");
 
 test "IpV4Address.from_slice()" {
     var array = []u8{127, 0, 0, 1};
@@ -100,4 +99,35 @@ test "IpV4Address.format()" {
     const expected: []const u8 = "13.12.11.10";
 
     testing.expect(mem.eql(u8, result, expected));
+}
+
+fn testIpV4ParseError(addr: []const u8, expected_error: ParseError) void {
+    if (IpV4Address.parse(addr)) |_| {
+        @panic("parse success, expected failure");
+    } else |e| {
+        testing.expect(e == expected_error);
+    }
+}
+
+fn testIpV4Format(addr: IpV4Address, expected: []const u8) !void {
+    var buffer: [15]u8 = undefined;
+    const buf = buffer[0..];
+
+    const result = try fmt.bufPrint(buf, "{}", addr);
+
+    testing.expect(mem.eql(u8, result, expected));
+}
+
+test "IpV4Address.parse()" {
+    const parsed = try IpV4Address.parse("127.0.0.1");
+    testing.expect(parsed.equals(IpV4Address.Localhost));
+
+    const mask_parsed = try IpV4Address.parse("255.255.255.0");
+    try testIpV4Format(mask_parsed, "255.255.255.0");
+
+    testIpV4ParseError("256.0.0.1", ParseError.Overflow);
+    testIpV4ParseError("x.0.0.1", ParseError.InvalidCharacter);
+    testIpV4ParseError("127.0.0.1.1", ParseError.TooManyOctets);
+    testIpV4ParseError("127.0.0.", ParseError.Incomplete);
+    testIpV4ParseError("100..0.1", ParseError.InvalidCharacter);
 }

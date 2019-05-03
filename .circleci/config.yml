@@ -9,6 +9,10 @@ jobs:
     steps:
       - checkout
       - run:
+          name: print zig version
+          command: |
+            zig version
+      - run:
           name: run tests
           command: |
             zig build test
