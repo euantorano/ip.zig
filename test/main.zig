@@ -3,10 +3,7 @@ const mem = std.mem;
 const fmt = std.fmt;
 const testing = std.testing;
 
-const i = @import("ip");
-const IpV6Address = i.IpV6Address;
-const IpV4Address = i.IpV4Address;
-const IpAddress = i.IpAddress;
+use @import("ip");
 
 test "" {
     _ = @import("./ipv4.zig");
@@ -210,4 +207,25 @@ test "IpAddress.format()" {
         },
         "2001:db8:85a3:8d3:1319:8a2e:370:7348"
     );
+}
+
+fn testIpParseError(addr: []const u8, expected_error: ParseError) void {
+    if (IpAddress.parse(addr)) |_| {
+        @panic("parse success, expected failure");
+    } else |e| {
+        testing.expect(e == expected_error);
+    }
+}
+
+test "IpAddress.parse()" {
+    const parsed = try IpAddress.parse("127.0.0.1");
+    testing.expect(parsed.equals(IpAddress{
+        .V4 = IpV4Address.Localhost,
+    }));
+
+    testIpParseError("256.0.0.1", ParseError.Overflow);
+    testIpParseError("x.0.0.1", ParseError.InvalidCharacter);
+    testIpParseError("127.0.0.1.1", ParseError.TooManyOctets);
+    testIpParseError("127.0.0.", ParseError.Incomplete);
+    testIpParseError("100..0.1", ParseError.InvalidCharacter);
 }

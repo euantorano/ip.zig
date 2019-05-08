@@ -3,10 +3,7 @@ const mem = std.mem;
 const fmt = std.fmt;
 const testing = std.testing;
 
-const i = @import("ip");
-const IpV6Address = i.IpV6Address;
-const Ipv6MulticastScope = i.Ipv6MulticastScope;
-const IpV4Address = i.IpV4Address;
+use @import("ip");
 
 test "IpV6Address.segments()" {
     testing.expectEqual(
@@ -171,4 +168,30 @@ test "IpV6Address.format()" {
         IpV6Address.init(0x001, 0, 0, 0, 0, 0, 0, 0),
         "1::"
     );
+}
+
+
+fn testIpV6ParseError(addr: []const u8, expected_error: ParseError) void {
+    if (IpV6Address.parse(addr)) |_| {
+        @panic("parse success, expected failure");
+    } else |e| {
+        testing.expect(e == expected_error);
+    }
+}
+
+fn testIpV6Format(addr: IpV6Address, expected: []const u8) !void {
+    var buffer: [1024]u8 = undefined;
+    const buf = buffer[0..];
+
+    const result = try fmt.bufPrint(buf, "{}", addr);
+
+    std.debug.warn("res: {}", result);
+
+    testing.expect(mem.eql(u8, result, expected));
+}
+
+test "IpV4Address.parse()" {
+    const parsed = try IpV6Address.parse("::1");
+    try testIpV6Format(parsed, "::1");
+    testing.expect(parsed.equals(IpV6Address.Localhost));
 }

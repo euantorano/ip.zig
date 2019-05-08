@@ -11,6 +11,7 @@ pub const ParseError = error {
     TooManyOctets,
     Overflow,
     Incomplete,
+    UnknownAddressType,
 };
 
 /// An IPv4 address.
@@ -54,7 +55,7 @@ pub const IpV4Address = struct {
         return Self.from_slice(&address);
     }
 
-    /// Oarse an IP Address from a string representation.
+    /// Parse an IP Address from a string representation.
     pub fn parse(buf: []const u8) ParseError!Self {
         var octs: [4]u8 = []u8{0} ** 4;
 
@@ -269,6 +270,60 @@ pub const IpV6Address = struct {
         mem.writeInt(u128, &address, ip, builtin.Endian.Big);
 
         return Self.from_slice(&address);
+    }
+
+    /// Parse an IP Address from a string representation.
+    pub fn parse(buf: []const u8) ParseError!Self {
+        var octs: [16]u8 = []u8{0} ** 16;
+
+        var x: u16 = 0;
+        var octets_index: usize = 0;
+        var any_digits: bool = false;
+
+        for (buf) |b| {
+            switch (b) {
+                ':' => {
+
+                    octs[octets_index] = @truncate(u8, x >> 8);
+                    octets_index += 1;
+                    octs[octets_index] = @truncate(u8, x);
+                    octets_index += 1;
+
+                    x = 0;
+                    any_digits = false;
+                },
+                '%' => {
+                    if (!any_digits) {
+                        return ParseError.InvalidCharacter;
+                    }
+
+                    // don't care about scopes
+                    break;
+                },
+                '0'...'9', 'a'...'f', 'A'...'F' => {
+                    const digit = try std.fmt.charToDigit(b, 16);
+
+                    if (@mulWithOverflow(u16, x, 16, &x)) {
+                        return ParseError.Overflow;
+                    }
+
+                    if (@addWithOverflow(u16, x, digit, &x)) {
+                        return ParseError.Overflow;
+                    }
+
+                    any_digits = true;
+                },
+                else => {
+                    return ParseError.InvalidCharacter;
+                }
+            }
+        }
+
+        if (!any_digits) {
+            return ParseError.Incomplete;
+        }
+
+        return Self.from_array(octs);
     }
 
     /// Returns the segments of an IP Address as an array of 16 bit integers.
@@ -527,6 +582,33 @@ pub const IpAddress = union(IpAddressType) {
     V4: IpV4Address,
     V6: IpV6Address,
 
+    /// Parse an IP Address from a string representation.
+    pub fn parse(buf: []const u8) ParseError!Self {
+        for (buf) |b| {
+            switch (b) {
+                '.' => {
+                    // IPv4
+                    const addr = try IpV4Address.parse(buf);
+
+                    return Self {
+                        .V4 = addr,
+                    };
+                },
+                ':' => {
+                    // IPv6
+                    const addr = try IpV6Address.parse(buf);
+
+                    return Self {
+                        .V6 = addr,
+                    };
+                },
+                else => continue,
+            }
+        }
+
+        return ParseError.UnknownAddressType;
+    }
+
     /// Returns whether the IP Address is an IPv4 address.
     pub fn is_ipv4(self: Self) bool {
         return switch (self) {
@@ -585,20 +667,16 @@ pub const IpAddress = union(IpAddressType) {
 
     /// Returns whether an IP Address is equal to another.
     pub fn equals(self: Self, other: Self) bool {
-        if (IpAddressType(self) != IpAddressType(other)) {
-            return false;
-        }
-
         return switch (self) {
-            .V4 => |v4| blk: {
+            .V4 => |a| blk: {
                 break :blk switch (other) {
-                    .V4 => |v41| v4.equals(v41),
+                    .V4 => |b| a.equals(b),
                     else => false,
                 };
             },
-            .V6 => |v6| blk: {
+            .V6 => |a| blk: {
                 break :blk switch (other) {
-                    .V6 => |v61| v6.equals(v61),
+                    .V6 => |b| a.equals(b),
                     else => false,
                 };
             },
