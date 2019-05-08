@@ -156,13 +156,19 @@ fn testIpV6Format(addr: IpV6Address, expected: []const u8) !void {
 
     const result = try fmt.bufPrint(buf, "{}", addr);
 
-    std.debug.warn("res: {}", result);
-
     testing.expect(mem.eql(u8, result, expected));
 }
 
-// test "IpV4Address.parse()" {
-//     const parsed = try IpV6Address.parse("::1");
-//     try testIpV6Format(parsed, "::1");
-//     testing.expect(parsed.equals(IpV6Address.Localhost));
-// }
+fn testIpV6ParseAndBack(addr: []const u8, expectedIp: IpV6Address) !void {
+    const parsed = try IpV6Address.parse(addr);
+    try testIpV6Format(parsed, addr);
+
+    testing.expect(parsed.equals(expectedIp));
+}
+
+test "IpV4Address.parse()" {
+    try testIpV6ParseAndBack("::", IpV6Address.Unspecified);
+    try testIpV6ParseAndBack("::1", IpV6Address.Localhost);
+    try testIpV6ParseAndBack("2001:db8:85a3::8a2e:370:7334", IpV6Address.init(0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334));
+    try testIpV6ParseAndBack("2001:db8:85a3:8d3:1319:8a2e:370:7348", IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348));
+}

@@ -267,35 +267,55 @@ pub const IpV6Address = struct {
         return Self.from_slice(&address);
     }
 
-    /// Parse an IP Address from a string representation.
-    pub fn parse(buf: []const u8) ParseError!Self {
-        var octs: [16]u8 = []u8{0} ** 16;
+    fn parse_as_many_octets_as_possible(buf: []const u8, parsed_to: *usize) ParseError![]u16 {
+        var octs: [8]u16 = []u16{0} ** 8;
 
         var x: u16 = 0;
-        var octets_index: usize = 0;
         var any_digits: bool = false;
+        var octets_index: usize = 0;
 
-        for (buf) |b| {
+        for (buf) |b, i| {
+            parsed_to.* = i;
+
             switch (b) {
-                ':' => {
-                    octs[octets_index] = @truncate(u8, x >> 8);
-                    octets_index += 1;
-                    octs[octets_index] = @truncate(u8, x);
-                    octets_index += 1;
-
-                    x = 0;
-                    any_digits = false;
-                },
                 '%' => {
-                    if (!any_digits) {
-                        return ParseError.InvalidCharacter;
-                    }
-
-                    // don't care about scopes
                     break;
                 },
-                '0'...'9', 'a'...'f', 'A'...'F' => {
-                    const digit = try std.fmt.charToDigit(b, 16);
+                ':' => {
+                    if (!any_digits and i > 0) {
+                        break;
+                    }
+
+                    if (octets_index > 7) {
+                        return ParseError.TooManyOctets;
+                    }
+
+                    octs[octets_index] = x;
+                    x = 0;
+
+                    if (i > 0) {
+                        octets_index += 1;
+                    }
+                    
+                    any_digits = false;
+                },
+                '0'...'9', 'a'...'z', 'A'...'Z' => {
+                    any_digits = true;
+
+                    const digit = switch (b) {
+                        '0'...'9' => blk: {
+                            break :blk b - '0';
+                        },
+                        'a'...'f' => blk: {
+                            break :blk b - 'a' + 10;
+                        },
+                        'A'...'F' => blk: {
+                            break :blk b - 'A' + 10;
+                        },
+                        else => {
+                            return ParseError.InvalidCharacter;
+                        }
+                    };
 
                     if (@mulWithOverflow(u16, x, 16, &x)) {
                         return ParseError.Overflow;
@@ -304,8 +324,6 @@ pub const IpV6Address = struct {
                     if (@addWithOverflow(u16, x, digit, &x)) {
                         return ParseError.Overflow;
                     }
-
-                    any_digits = true;
                 },
                 else => {
                     return ParseError.InvalidCharacter;
@@ -313,11 +331,80 @@ pub const IpV6Address = struct {
             }
         }
 
-        if (!any_digits) {
-            return ParseError.Incomplete;
+        if (any_digits) {
+            octs[octets_index] = x;
+            octets_index += 1;
         }
 
-        return Self.from_array(octs);
+        return octs[0..octets_index];
+    }
+
+    /// Parse an IP Address from a string representation.
+    pub fn parse(buf: []const u8) ParseError!Self {
+        var parsed_to: usize = 0;
+        var parsed: Self = undefined;
+
+        const first_part = try Self.parse_as_many_octets_as_possible(buf, &parsed_to);
+
+        if (first_part.len == 8) {
+            // got all octets, meaning there is no empty section within the string
+            parsed = Self.init(
+                first_part[0],
+                first_part[1],
+                first_part[2],
+                first_part[3],
+                first_part[4],
+                first_part[5],
+                first_part[6],
+                first_part[7]
+            );
+        } else {
+            // not all octets parsed, there must be more to parse
+            if (parsed_to >= buf.len) {
+                // ran out of buffer without getting full packet
+                return ParseError.Incomplete;
+            }
+
+            // create new array by combining first and second part
+            var octs: [8]u16 = []u16{0} ** 8;
+
+            if (first_part.len > 0) {
+                std.mem.copy(u16, octs[0..first_part.len], first_part);
+            }
+
+            const end_buf = buf[parsed_to + 1..];
+            const second_part = try Self.parse_as_many_octets_as_possible(end_buf, &parsed_to);
+
+            std.mem.copy(u16, octs[8 - second_part.len..], second_part);
+
+            parsed = Self.init(
+                octs[0],
+                octs[1],
+                octs[2],
+                octs[3],
+                octs[4],
+                octs[5],
+                octs[6],
+                octs[7]
+            );
+        }
+
+        if (parsed_to < buf.len - 1) {
+            // check for a trailing scope id
+            if (buf[parsed_to + 1] == '%') {
+                // rest of buf is assumed to be scope id
+                parsed_to += 1;
+
+                if (parsed_to >= buf.len) {
+                    // not enough data left in buffer for scope id
+                    return ParseError.Incomplete;
+                }
+
+                // TODO: parsed.scope_id = buf[parsed_to..];
+            }
+        }
+
+        return parsed;
     }
 
     /// Returns whether there is a scope ID associated with an IP Address.
