@@ -6,7 +6,7 @@ const fmt = std.fmt;
 const testing = std.testing;
 
 /// Errors that can occur when parsing an IP Address.
-pub const ParseError = error {
+pub const ParseError = error{
     InvalidCharacter,
     TooManyOctets,
     Overflow,
@@ -26,8 +26,13 @@ pub const IpV4Address = struct {
 
     /// Create an IP Address with the given octets.
     pub fn init(a: u8, b: u8, c: u8, d: u8) Self {
-        return Self {
-            .address = []u8 {a, b, c, d,},
+        return Self{
+            .address = []u8{
+                a,
+                b,
+                c,
+                d,
+            },
         };
     }
 
@@ -42,7 +47,7 @@ pub const IpV4Address = struct {
 
     /// Create an IP Address from an array of bytes.
     pub fn from_array(address: [4]u8) Self {
-        return Self {
+        return Self{
             .address = address,
         };
     }
@@ -196,9 +201,7 @@ pub const IpV4Address = struct {
     /// Formats the IP Address using the given format string and context.
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
-    pub fn format(self: Self, comptime formatString: []const u8, context: var,
-        comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void
-    ) Errors!void {
+    pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
         return fmt.format(context, Errors, output, "{}.{}.{}.{}", self.address[0], self.address[1], self.address[2], self.address[3]);
     }
 };
@@ -220,12 +223,11 @@ pub const IpV6Address = struct {
     pub const Unspecified = Self.init(0, 0, 0, 0, 0, 0, 0, 0);
 
     address: [16]u8,
+    pub scope_id: ?[]u8,
 
     /// Create an IP Address with the given 16 bit segments.
-    pub fn init(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16,
-        g: u17, h: u16
-    ) Self {
-        return Self {
+    pub fn init(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u17, h: u16) Self {
+        return Self{
             .address = [16]u8{
                 @intCast(u8, a >> 8), @truncate(u8, a),
                 @intCast(u8, b >> 8), @truncate(u8, b),
@@ -236,6 +238,7 @@ pub const IpV6Address = struct {
                 @intCast(u8, g >> 8), @truncate(u8, g),
                 @intCast(u8, h >> 8), @truncate(u8, h),
             },
+            .scope_id = null,
         };
     }
 
@@ -245,22 +248,14 @@ pub const IpV6Address = struct {
     pub fn from_slice(address: []u8) Self {
         debug.assert(address.len == 16);
 
-        return Self.init(
-            mem.readVarInt(u16, address[0..2], builtin.Endian.Big),
-            mem.readVarInt(u16, address[2..4], builtin.Endian.Big),
-            mem.readVarInt(u16, address[4..6], builtin.Endian.Big),
-            mem.readVarInt(u16, address[6..8], builtin.Endian.Big),
-            mem.readVarInt(u16, address[8..10], builtin.Endian.Big),
-            mem.readVarInt(u16, address[10..12], builtin.Endian.Big),
-            mem.readVarInt(u16, address[12..14], builtin.Endian.Big),
-            mem.readVarInt(u16, address[14..16], builtin.Endian.Big)
-        );
+        return Self.init(mem.readVarInt(u16, address[0..2], builtin.Endian.Big), mem.readVarInt(u16, address[2..4], builtin.Endian.Big), mem.readVarInt(u16, address[4..6], builtin.Endian.Big), mem.readVarInt(u16, address[6..8], builtin.Endian.Big), mem.readVarInt(u16, address[8..10], builtin.Endian.Big), mem.readVarInt(u16, address[10..12], builtin.Endian.Big), mem.readVarInt(u16, address[12..14], builtin.Endian.Big), mem.readVarInt(u16, address[14..16], builtin.Endian.Big));
     }
 
     /// Create an IP Address from an array of bytes.
     pub fn from_array(address: [16]u8) Self {
-        return Self {
+        return Self{
             .address = address,
+            .scope_id = null,
         };
     }
 
@@ -283,7 +278,6 @@ pub const IpV6Address = struct {
         for (buf) |b| {
             switch (b) {
                 ':' => {
-
                     octs[octets_index] = @truncate(u8, x >> 8);
                     octets_index += 1;
                     octs[octets_index] = @truncate(u8, x);
@@ -315,7 +309,7 @@ pub const IpV6Address = struct {
                 },
                 else => {
                     return ParseError.InvalidCharacter;
-                }
+                },
             }
         }
 
@@ -324,6 +318,11 @@ pub const IpV6Address = struct {
         }
 
         return Self.from_array(octs);
+    }
+
+    /// Returns whether there is a scope ID associated with an IP Address.
+    pub fn has_scope_id(self: Self) bool {
+        return self.scope_id != null;
     }
 
     /// Returns the segments of an IP Address as an array of 16 bit integers.
@@ -336,7 +335,7 @@ pub const IpV6Address = struct {
             mem.readVarInt(u16, self.address[8..10], builtin.Endian.Big),
             mem.readVarInt(u16, self.address[10..12], builtin.Endian.Big),
             mem.readVarInt(u16, self.address[12..14], builtin.Endian.Big),
-            mem.readVarInt(u16, self.address[14..16], builtin.Endian.Big)
+            mem.readVarInt(u16, self.address[14..16], builtin.Endian.Big),
         };
     }
 
@@ -415,7 +414,7 @@ pub const IpV6Address = struct {
 
     /// Returns whether an IP Address is a globally routable unicast address.
     pub fn is_unicast_global(self: Self) bool {
-        return !self.is_multicast() and !self.is_loopback() and 
+        return !self.is_multicast() and !self.is_loopback() and
             !self.is_unicast_link_local() and !self.is_unicast_site_local() and
             !self.is_unique_local() and !self.is_unspecified() and
             !self.is_documentation();
@@ -428,7 +427,7 @@ pub const IpV6Address = struct {
 
     /// Returns whether an IP Address is IPv4 mapped.
     pub fn is_ipv4_mapped(self: Self) bool {
-        return mem.allEqual(u8, self.address[0..10], 0) and 
+        return mem.allEqual(u8, self.address[0..10], 0) and
             self.address[10] == 0xff and self.address[11] == 0xff;
     }
 
@@ -439,13 +438,9 @@ pub const IpV6Address = struct {
         }
 
         if (self.address[10] == 0 and self.address[11] == 0 or
-            self.address[10] == 0xff and self.address[11] == 0xff) {
-            return IpV4Address.init(
-                self.address[12],
-                self.address[13],
-                self.address[14],
-                self.address[15]
-            );
+            self.address[10] == 0xff and self.address[11] == 0xff)
+        {
+            return IpV4Address.init(self.address[12], self.address[13], self.address[14], self.address[15]);
         }
 
         return null;
@@ -461,10 +456,7 @@ pub const IpV6Address = struct {
         return mem.readVarInt(u128, self.address, builtin.Endian.Big);
     }
 
-    fn fmt_slice(slice: []const u16, context: var,
-        comptime Errors: type, 
-        output: fn (@typeOf(context), []const u8) Errors!void
-    ) Errors!void {
+    fn fmt_slice(slice: []const u16, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
         if (slice.len == 0) {
             return;
         }
@@ -476,38 +468,15 @@ pub const IpV6Address = struct {
         }
     }
 
-    /// Formats the IP Address using the given format string and context.
-    ///
-    /// This is used by the `std.fmt` module to format an IP Address within a format string.
-    pub fn format(self: Self, comptime formatString: []const u8, context: var,
-        comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void
-    ) Errors!void {
+    fn format_address(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
         if (mem.allEqual(u8, self.address, 0)) {
             return fmt.format(context, Errors, output, "::");
         } else if (mem.allEqual(u8, self.address[0..14], 0) and self.address[15] == 1) {
             return fmt.format(context, Errors, output, "::1");
         } else if (self.is_ipv4_compatible()) {
-            return fmt.format(
-                context, 
-                Errors, 
-                output, 
-                "::{}.{}.{}.{}",
-                self.address[12],
-                self.address[13],
-                self.address[14],
-                self.address[15]
-            );
+            return fmt.format(context, Errors, output, "::{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
         } else if (self.is_ipv4_mapped()) {
-            return fmt.format(
-                context, 
-                Errors, 
-                output, 
-                "::ffff:{}.{}.{}.{}",
-                self.address[12],
-                self.address[13],
-                self.address[14],
-                self.address[15]
-            );
+            return fmt.format(context, Errors, output, "::ffff:{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
         } else {
             const segs = self.segments();
 
@@ -536,37 +505,25 @@ pub const IpV6Address = struct {
             }
 
             if (longest_group_of_zero_length > 0) {
-                try IpV6Address.fmt_slice(
-                    segs[0..longest_group_of_zero_at], 
-                    context, 
-                    Errors, 
-                    output
-                );
+                try IpV6Address.fmt_slice(segs[0..longest_group_of_zero_at], context, Errors, output);
 
                 try fmt.format(context, Errors, output, "::");
 
-                try IpV6Address.fmt_slice(
-                    segs[longest_group_of_zero_at + longest_group_of_zero_length..], 
-                    context, 
-                    Errors, 
-                    output
-                );
+                try IpV6Address.fmt_slice(segs[longest_group_of_zero_at + longest_group_of_zero_length ..], context, Errors, output);
             } else {
-                return fmt.format(
-                    context, 
-                    Errors, 
-                    output, 
-                    "{x}:{x}:{x}:{x}:{x}:{x}:{x}:{x}", 
-                    segs[0], 
-                    segs[1], 
-                    segs[2], 
-                    segs[3],
-                    segs[4],
-                    segs[5],
-                    segs[6],
-                    segs[7]
-                );
+                return fmt.format(context, Errors, output, "{x}:{x}:{x}:{x}:{x}:{x}:{x}:{x}", segs[0], segs[1], segs[2], segs[3], segs[4], segs[5], segs[6], segs[7]);
             }
+        }
+    }
+
+    /// Formats the IP Address using the given format string and context.
+    ///
+    /// This is used by the `std.fmt` module to format an IP Address within a format string.
+    pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
+        try self.format_address(formatString, context, Errors, output);
+
+        if (self.scope_id) |scope| {
+            return fmt.format(context, Errors, output, "%{}", scope);
         }
     }
 };
@@ -590,7 +547,7 @@ pub const IpAddress = union(IpAddressType) {
                     // IPv4
                     const addr = try IpV4Address.parse(buf);
 
-                    return Self {
+                    return Self{
                         .V4 = addr,
                     };
                 },
@@ -598,7 +555,7 @@ pub const IpAddress = union(IpAddressType) {
                     // IPv6
                     const addr = try IpV6Address.parse(buf);
 
-                    return Self {
+                    return Self{
                         .V6 = addr,
                     };
                 },
@@ -686,9 +643,7 @@ pub const IpAddress = union(IpAddressType) {
     /// Formats the IP Address using the given format string and context.
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
-    pub fn format(self: Self, comptime formatString: []const u8, context: var,
-        comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void
-    ) Errors!void {
+    pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
         return switch (self) {
             .V4 => |a| a.format(formatString, context, Errors, output),
             .V6 => |a| a.format(formatString, context, Errors, output),

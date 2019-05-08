@@ -6,33 +6,27 @@ const testing = std.testing;
 use @import("ip");
 
 test "IpV6Address.segments()" {
-    testing.expectEqual(
-        [8]u16{0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff},
-        IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).segments()
-    );
+    testing.expectEqual([8]u16{ 0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff }, IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).segments());
 }
 
 test "IpV6Address.octets()" {
-    const expected = [16]u8 {
-        0, 0, 0, 0, 0, 0, 0, 0 ,0, 0,
+    const expected = [16]u8{
+        0,    0,    0,    0,    0,    0,    0, 0, 0, 0,
         0xff, 0xff, 0xc0, 0x0a, 0x02, 0xff,
     };
     const ip = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff);
-    
+
     testing.expectEqual(expected, ip.octets());
 }
 
 test "IpV6Address.from_slice()" {
-    var arr = [16]u8 {
-        0, 0, 0, 0, 0, 0, 0, 0 ,0, 0,
+    var arr = [16]u8{
+        0,    0,    0,    0,    0,    0,    0, 0, 0, 0,
         0xff, 0xff, 0xc0, 0x0a, 0x02, 0xff,
     };
     const ip = IpV6Address.from_slice(&arr);
 
-    testing.expectEqual(
-        [8]u16{0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff},
-        ip.segments()
-    );
+    testing.expectEqual([8]u16{ 0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff }, ip.segments());
 }
 
 test "IpV6Address.is_unspecified()" {
@@ -56,7 +50,7 @@ test "IpV6Address.is_documentation()" {
 }
 
 test "IpV6Address.is_multicast_link_local()" {
-    var arr = []u8{0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02};
+    var arr = []u8{ 0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x02 };
 
     testing.expect(IpV6Address.from_slice(&arr).is_multicast_link_local() == true);
     testing.expect(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).is_multicast_link_local() == false);
@@ -99,16 +93,8 @@ test "IpV6Address.to_ipv4()" {
     const firstAddress = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff).to_ipv4() orelse unreachable;
     const secondAddress = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1).to_ipv4() orelse unreachable;
 
-    testing.expect(
-        firstAddress.equals(
-            IpV4Address.init(192, 10, 2, 255)
-        )
-    );
-    testing.expect(
-        secondAddress.equals(
-            IpV4Address.init(0, 0, 0, 1)
-        )
-    );
+    testing.expect(firstAddress.equals(IpV4Address.init(192, 10, 2, 255)));
+    testing.expect(secondAddress.equals(IpV4Address.init(0, 0, 0, 1)));
     testing.expect(IpV6Address.init(0xff00, 0, 0, 0, 0, 0, 0, 0).to_ipv4() == null);
 }
 
@@ -140,36 +126,21 @@ fn test_format_ipv6_address(address: IpV6Address, expected: []const u8) !void {
 }
 
 test "IpV6Address.format()" {
-    try test_format_ipv6_address(
-        IpV6Address.Unspecified,
-        "::"
-    );
-    try test_format_ipv6_address(
-        IpV6Address.Localhost,
-        "::1"
-    );
-    try test_format_ipv6_address(
-        IpV6Address.init(0, 0, 0, 0, 0, 0x00, 0xc00a, 0x2ff),
-        "::192.10.2.255"
-    );
-    try test_format_ipv6_address(
-        IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-        "::ffff:192.10.2.255"
-    );
-    try test_format_ipv6_address(
-        IpV6Address.init(0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334),
-        "2001:db8:85a3::8a2e:370:7334"
-    );
-    try test_format_ipv6_address(
-        IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348),
-        "2001:db8:85a3:8d3:1319:8a2e:370:7348"
-    );
-    try test_format_ipv6_address(
-        IpV6Address.init(0x001, 0, 0, 0, 0, 0, 0, 0),
-        "1::"
-    );
-}
+    try test_format_ipv6_address(IpV6Address.Unspecified, "::");
+    try test_format_ipv6_address(IpV6Address.Localhost, "::1");
+    try test_format_ipv6_address(IpV6Address.init(0, 0, 0, 0, 0, 0x00, 0xc00a, 0x2ff), "::192.10.2.255");
+    try test_format_ipv6_address(IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff), "::ffff:192.10.2.255");
+    try test_format_ipv6_address(IpV6Address.init(0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334), "2001:db8:85a3::8a2e:370:7334");
+    try test_format_ipv6_address(IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348), "2001:db8:85a3:8d3:1319:8a2e:370:7348");
+    try test_format_ipv6_address(IpV6Address.init(0x001, 0, 0, 0, 0, 0, 0, 0), "1::");
 
+    var scope_id = "eth2";
+
+    var ipWithScopeId = IpV6Address.init(0x2001, 0x0db8, 0x85a3, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334);
+    ipWithScopeId.scope_id = scope_id[0..];
+
+    try test_format_ipv6_address(ipWithScopeId, "2001:db8:85a3::8a2e:370:7334%eth2");
+}
 
 fn testIpV6ParseError(addr: []const u8, expected_error: ParseError) void {
     if (IpV6Address.parse(addr)) |_| {
@@ -190,8 +161,8 @@ fn testIpV6Format(addr: IpV6Address, expected: []const u8) !void {
     testing.expect(mem.eql(u8, result, expected));
 }
 
-test "IpV4Address.parse()" {
-    const parsed = try IpV6Address.parse("::1");
-    try testIpV6Format(parsed, "::1");
-    testing.expect(parsed.equals(IpV6Address.Localhost));
-}
+// test "IpV4Address.parse()" {
+//     const parsed = try IpV6Address.parse("::1");
+//     try testIpV6Format(parsed, "::1");
+//     testing.expect(parsed.equals(IpV6Address.Localhost));
+// }

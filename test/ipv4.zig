@@ -6,21 +6,21 @@ const testing = std.testing;
 use @import("ip");
 
 test "IpV4Address.from_slice()" {
-    var array = []u8{127, 0, 0, 1};
+    var array = []u8{ 127, 0, 0, 1 };
     const ip = IpV4Address.from_slice(&array);
 
     testing.expect(IpV4Address.Localhost.equals(ip));
 }
 
 test "IpV4Address.from_array()" {
-    var array = []u8{127, 0, 0, 1};
+    var array = []u8{ 127, 0, 0, 1 };
     const ip = IpV4Address.from_array(array);
 
     testing.expect(IpV4Address.Localhost.equals(ip));
 }
 
 test "IpV4Address.octets()" {
-    testing.expectEqual([]u8{127, 0, 0, 1}, IpV4Address.init(127, 0, 0, 1).octets());
+    testing.expectEqual([]u8{ 127, 0, 0, 1 }, IpV4Address.init(127, 0, 0, 1).octets());
 }
 
 test "IpV4Address.is_unspecified()" {
