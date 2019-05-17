@@ -15,7 +15,7 @@ test "IpAddress.is_ipv4()" {
         .V4 = IpV4Address.init(192, 168, 0, 1),
     };
 
-    testing.expect(ip.is_ipv4() == true);
+    testing.expect(ip.is_ipv4());
     testing.expect(ip.is_ipv6() == false);
 }
 
@@ -24,21 +24,21 @@ test "IpAddress.is_ipv6()" {
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
     };
 
-    testing.expect(ip.is_ipv6() == true);
+    testing.expect(ip.is_ipv6());
     testing.expect(ip.is_ipv4() == false);
 }
 
 test "IpAddress.is_unspecified()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(0, 0, 0, 0),
-    }).is_unspecified() == true);
+    }).is_unspecified());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(192, 168, 0, 1),
     }).is_unspecified() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0),
-    }).is_unspecified() == true);
+    }).is_unspecified());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
     }).is_unspecified() == false);
@@ -47,14 +47,14 @@ test "IpAddress.is_unspecified()" {
 test "IpAddress.is_loopback()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(127, 0, 0, 1),
-    }).is_loopback() == true);
+    }).is_loopback());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(192, 168, 0, 1),
     }).is_loopback() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1),
-    }).is_loopback() == true);
+    }).is_loopback());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
     }).is_loopback() == false);
@@ -63,14 +63,14 @@ test "IpAddress.is_loopback()" {
 test "IpAddress.is_multicast()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(236, 168, 10, 65),
-    }).is_multicast() == true);
+    }).is_multicast());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(172, 16, 10, 65),
     }).is_multicast() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0xff00, 0, 0, 0, 0, 0, 0, 0),
-    }).is_multicast() == true);
+    }).is_multicast());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
     }).is_multicast() == false);
@@ -79,14 +79,14 @@ test "IpAddress.is_multicast()" {
 test "IpAddress.is_documentation()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(203, 0, 113, 6),
-    }).is_documentation() == true);
+    }).is_documentation());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(193, 34, 17, 19),
     }).is_documentation() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0),
-    }).is_documentation() == true);
+    }).is_documentation());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
     }).is_documentation() == false);
@@ -98,14 +98,14 @@ test "IpAddress.is_globally_routable()" {
     }).is_globally_routable() == false);
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(80, 9, 12, 3),
-    }).is_globally_routable() == true);
+    }).is_globally_routable());
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-    }).is_globally_routable() == true);
+    }).is_globally_routable());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0x1c9, 0, 0, 0xafc8, 0, 0x1),
-    }).is_globally_routable() == true);
+    }).is_globally_routable());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1),
     }).is_globally_routable() == false);
@@ -114,11 +114,11 @@ test "IpAddress.is_globally_routable()" {
 test "IpAddress.equals()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(127, 0, 0, 1),
-    }).equals(IpAddress{ .V4 = IpV4Address.Localhost }) == true);
+    }).equals(IpAddress{ .V4 = IpV4Address.Localhost }));
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1),
-    }).equals(IpAddress{ .V6 = IpV6Address.Localhost }) == true);
+    }).equals(IpAddress{ .V6 = IpV6Address.Localhost }));
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 1),
@@ -131,7 +131,7 @@ fn test_format_ip_address(address: IpAddress, expected: []const u8) !void {
 
     const result = try fmt.bufPrint(buf, "{}", address);
 
-    testing.expect(mem.eql(u8, result, expected));
+    testing.expectEqualSlices(u8, result, expected);
 }
 
 test "IpAddress.format()" {
@@ -144,11 +144,7 @@ test "IpAddress.format()" {
 }
 
 fn testIpParseError(addr: []const u8, expected_error: ParseError) void {
-    if (IpAddress.parse(addr)) |_| {
-        @panic("parse success, expected failure");
-    } else |e| {
-        testing.expect(e == expected_error);
-    }
+    testing.expectError(expected_error, IpAddress.parse(addr));
 }
 
 test "IpAddress.parse()" {

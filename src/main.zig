@@ -264,7 +264,7 @@ pub const IpV6Address = struct {
         var address: [16]u8 = undefined;
         mem.writeInt(u128, &address, ip, builtin.Endian.Big);
 
-        return Self.from_slice(&address);
+        return Self.from_array(address);
     }
 
     fn parse_as_many_octets_as_possible(buf: []const u8, parsed_to: *usize) ParseError![]u16 {
@@ -296,7 +296,7 @@ pub const IpV6Address = struct {
                     if (i > 0) {
                         octets_index += 1;
                     }
-                    
+
                     any_digits = false;
                 },
                 '0'...'9', 'a'...'z', 'A'...'Z' => {
@@ -314,7 +314,7 @@ pub const IpV6Address = struct {
                         },
                         else => {
                             return ParseError.InvalidCharacter;
-                        }
+                        },
                     };
 
                     if (@mulWithOverflow(u16, x, 16, &x)) {
@@ -348,16 +348,7 @@ pub const IpV6Address = struct {
 
         if (first_part.len == 8) {
             // got all octets, meaning there is no empty section within the string
-            parsed = Self.init(
-                first_part[0],
-                first_part[1],
-                first_part[2],
-                first_part[3],
-                first_part[4],
-                first_part[5],
-                first_part[6],
-                first_part[7]
-            );
+            parsed = Self.init(first_part[0], first_part[1], first_part[2], first_part[3], first_part[4], first_part[5], first_part[6], first_part[7]);
         } else {
             // not all octets parsed, there must be more to parse
             if (parsed_to >= buf.len) {
@@ -372,21 +363,12 @@ pub const IpV6Address = struct {
                 std.mem.copy(u16, octs[0..first_part.len], first_part);
             }
 
-            const end_buf = buf[parsed_to + 1..];
+            const end_buf = buf[parsed_to + 1 ..];
             const second_part = try Self.parse_as_many_octets_as_possible(end_buf, &parsed_to);
 
-            std.mem.copy(u16, octs[8 - second_part.len..], second_part);
+            std.mem.copy(u16, octs[8 - second_part.len ..], second_part);
 
-            parsed = Self.init(
-                octs[0],
-                octs[1],
-                octs[2],
-                octs[3],
-                octs[4],
-                octs[5],
-                octs[6],
-                octs[7]
-            );
+            parsed = Self.init(octs[0], octs[1], octs[2], octs[3], octs[4], octs[5], octs[6], octs[7]);
         }
 
         if (parsed_to < buf.len - 1) {
