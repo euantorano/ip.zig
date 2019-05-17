@@ -5,16 +5,16 @@ const testing = std.testing;
 
 use @import("ip");
 
-test "IpV4Address.from_slice()" {
+test "IpV4Address.fromSlice()" {
     var array = []u8{ 127, 0, 0, 1 };
-    const ip = IpV4Address.from_slice(&array);
+    const ip = IpV4Address.fromSlice(&array);
 
     testing.expect(IpV4Address.Localhost.equals(ip));
 }
 
-test "IpV4Address.from_array()" {
+test "IpV4Address.fromArray()" {
     var array = []u8{ 127, 0, 0, 1 };
-    const ip = IpV4Address.from_array(array);
+    const ip = IpV4Address.fromArray(array);
 
     testing.expect(IpV4Address.Localhost.equals(ip));
 }
@@ -23,56 +23,56 @@ test "IpV4Address.octets()" {
     testing.expectEqual([]u8{ 127, 0, 0, 1 }, IpV4Address.init(127, 0, 0, 1).octets());
 }
 
-test "IpV4Address.is_unspecified()" {
-    testing.expect(IpV4Address.init(0, 0, 0, 0).is_unspecified());
-    testing.expect(IpV4Address.init(192, 168, 0, 1).is_unspecified() == false);
+test "IpV4Address.isUnspecified()" {
+    testing.expect(IpV4Address.init(0, 0, 0, 0).isUnspecified());
+    testing.expect(IpV4Address.init(192, 168, 0, 1).isUnspecified() == false);
 }
 
-test "IpV4Address.is_loopback()" {
-    testing.expect(IpV4Address.init(127, 0, 0, 1).is_loopback());
-    testing.expect(IpV4Address.init(192, 168, 0, 1).is_loopback() == false);
+test "IpV4Address.isLoopback()" {
+    testing.expect(IpV4Address.init(127, 0, 0, 1).isLoopback());
+    testing.expect(IpV4Address.init(192, 168, 0, 1).isLoopback() == false);
 }
 
-test "IpV4Address.is_private()" {
-    testing.expect(IpV4Address.init(10, 0, 0, 1).is_private());
-    testing.expect(IpV4Address.init(10, 10, 10, 10).is_private());
-    testing.expect(IpV4Address.init(172, 16, 10, 10).is_private());
-    testing.expect(IpV4Address.init(172, 29, 45, 14).is_private());
-    testing.expect(IpV4Address.init(172, 32, 0, 2).is_private() == false);
-    testing.expect(IpV4Address.init(192, 168, 0, 2).is_private());
-    testing.expect(IpV4Address.init(192, 169, 0, 2).is_private() == false);
+test "IpV4Address.isPrivate()" {
+    testing.expect(IpV4Address.init(10, 0, 0, 1).isPrivate());
+    testing.expect(IpV4Address.init(10, 10, 10, 10).isPrivate());
+    testing.expect(IpV4Address.init(172, 16, 10, 10).isPrivate());
+    testing.expect(IpV4Address.init(172, 29, 45, 14).isPrivate());
+    testing.expect(IpV4Address.init(172, 32, 0, 2).isPrivate() == false);
+    testing.expect(IpV4Address.init(192, 168, 0, 2).isPrivate());
+    testing.expect(IpV4Address.init(192, 169, 0, 2).isPrivate() == false);
 }
 
-test "IpV4Address.is_link_local()" {
-    testing.expect(IpV4Address.init(169, 254, 0, 0).is_link_local());
-    testing.expect(IpV4Address.init(169, 254, 10, 65).is_link_local());
-    testing.expect(IpV4Address.init(16, 89, 10, 65).is_link_local() == false);
+test "IpV4Address.isLinkLocal()" {
+    testing.expect(IpV4Address.init(169, 254, 0, 0).isLinkLocal());
+    testing.expect(IpV4Address.init(169, 254, 10, 65).isLinkLocal());
+    testing.expect(IpV4Address.init(16, 89, 10, 65).isLinkLocal() == false);
 }
 
-test "IpV4Address.is_multicast()" {
-    testing.expect(IpV4Address.init(224, 254, 0, 0).is_multicast());
-    testing.expect(IpV4Address.init(236, 168, 10, 65).is_multicast());
-    testing.expect(IpV4Address.init(172, 16, 10, 65).is_multicast() == false);
+test "IpV4Address.isMulticast()" {
+    testing.expect(IpV4Address.init(224, 254, 0, 0).isMulticast());
+    testing.expect(IpV4Address.init(236, 168, 10, 65).isMulticast());
+    testing.expect(IpV4Address.init(172, 16, 10, 65).isMulticast() == false);
 }
 
-test "IpV4Address.is_broadcast()" {
-    testing.expect(IpV4Address.init(255, 255, 255, 255).is_broadcast());
-    testing.expect(IpV4Address.init(236, 168, 10, 65).is_broadcast() == false);
+test "IpV4Address.isBroadcast()" {
+    testing.expect(IpV4Address.init(255, 255, 255, 255).isBroadcast());
+    testing.expect(IpV4Address.init(236, 168, 10, 65).isBroadcast() == false);
 }
 
-test "IpV4Address.is_documentation()" {
-    testing.expect(IpV4Address.init(192, 0, 2, 255).is_documentation());
-    testing.expect(IpV4Address.init(198, 51, 100, 65).is_documentation());
-    testing.expect(IpV4Address.init(203, 0, 113, 6).is_documentation());
-    testing.expect(IpV4Address.init(193, 34, 17, 19).is_documentation() == false);
+test "IpV4Address.isDocumentation()" {
+    testing.expect(IpV4Address.init(192, 0, 2, 255).isDocumentation());
+    testing.expect(IpV4Address.init(198, 51, 100, 65).isDocumentation());
+    testing.expect(IpV4Address.init(203, 0, 113, 6).isDocumentation());
+    testing.expect(IpV4Address.init(193, 34, 17, 19).isDocumentation() == false);
 }
 
-test "IpV4Address.is_globally_routable()" {
-    testing.expect(IpV4Address.init(10, 254, 0, 0).is_globally_routable() == false);
-    testing.expect(IpV4Address.init(192, 168, 10, 65).is_globally_routable() == false);
-    testing.expect(IpV4Address.init(172, 16, 10, 65).is_globally_routable() == false);
-    testing.expect(IpV4Address.init(0, 0, 0, 0).is_globally_routable() == false);
-    testing.expect(IpV4Address.init(80, 9, 12, 3).is_globally_routable());
+test "IpV4Address.isGloballyRoutable()" {
+    testing.expect(IpV4Address.init(10, 254, 0, 0).isGloballyRoutable() == false);
+    testing.expect(IpV4Address.init(192, 168, 10, 65).isGloballyRoutable() == false);
+    testing.expect(IpV4Address.init(172, 16, 10, 65).isGloballyRoutable() == false);
+    testing.expect(IpV4Address.init(0, 0, 0, 0).isGloballyRoutable() == false);
+    testing.expect(IpV4Address.init(80, 9, 12, 3).isGloballyRoutable());
 }
 
 test "IpV4Address.equals()" {
@@ -80,14 +80,14 @@ test "IpV4Address.equals()" {
     testing.expect(IpV4Address.init(127, 0, 0, 1).equals(IpV4Address.Localhost));
 }
 
-test "IpV4Address.to_host_byte_order()" {
+test "IpV4Address.toHostByteOrder()" {
     var expected: u32 = 0x0d0c0b0a;
 
-    testing.expectEqual(expected, IpV4Address.init(13, 12, 11, 10).to_host_byte_order());
+    testing.expectEqual(expected, IpV4Address.init(13, 12, 11, 10).toHostByteOrder());
 }
 
-test "IpV4Address.from_host_byte_order()" {
-    testing.expect(IpV4Address.from_host_byte_order(0x0d0c0b0a).equals(IpV4Address.init(13, 12, 11, 10)));
+test "IpV4Address.fromHostByteOrder()" {
+    testing.expect(IpV4Address.fromHostByteOrder(0x0d0c0b0a).equals(IpV4Address.init(13, 12, 11, 10)));
 }
 
 test "IpV4Address.format()" {

@@ -39,25 +39,25 @@ pub const IpV4Address = struct {
     /// Create an IP Address from a slice of bytes.
     ///
     /// The slice must be exactly 4 bytes long.
-    pub fn from_slice(address: []u8) Self {
+    pub fn fromSlice(address: []u8) Self {
         debug.assert(address.len == 4);
 
         return Self.init(address[0], address[1], address[2], address[3]);
     }
 
     /// Create an IP Address from an array of bytes.
-    pub fn from_array(address: [4]u8) Self {
+    pub fn fromArray(address: [4]u8) Self {
         return Self{
             .address = address,
         };
     }
 
     /// Create an IP Address from a host byte order u32.
-    pub fn from_host_byte_order(ip: u32) Self {
+    pub fn fromHostByteOrder(ip: u32) Self {
         var address: [4]u8 = undefined;
         mem.writeInt(u32, &address, ip, builtin.Endian.Big);
 
-        return Self.from_slice(&address);
+        return Self.fromSlice(&address);
     }
 
     /// Parse an IP Address from a string representation.
@@ -104,7 +104,7 @@ pub const IpV4Address = struct {
             return ParseError.Incomplete;
         }
 
-        return Self.from_array(octs);
+        return Self.fromArray(octs);
     }
 
     /// Returns the octets of an IP Address as an array of bytes.
@@ -113,17 +113,17 @@ pub const IpV4Address = struct {
     }
 
     /// Returns whether an IP Address is an unspecified address as specified in _UNIX Network Programming, Second Edition_.
-    pub fn is_unspecified(self: Self) bool {
+    pub fn isUnspecified(self: Self) bool {
         return mem.allEqual(u8, self.address, 0);
     }
 
     /// Returns whether an IP Address is a loopback address as defined by [IETF RFC 1122](https://tools.ietf.org/html/rfc1122).
-    pub fn is_loopback(self: Self) bool {
+    pub fn isLoopback(self: Self) bool {
         return self.address[0] == 127;
     }
 
     /// Returns whether an IP Address is a private address as defined by [IETF RFC 1918](https://tools.ietf.org/html/rfc1918).
-    pub fn is_private(self: Self) bool {
+    pub fn isPrivate(self: Self) bool {
         return switch (self.address[0]) {
             10 => true,
             172 => switch (self.address[1]) {
@@ -136,12 +136,12 @@ pub const IpV4Address = struct {
     }
 
     /// Returns whether an IP Address is a link-local address as defined by [IETF RFC 3927](https://tools.ietf.org/html/rfc3927).
-    pub fn is_link_local(self: Self) bool {
+    pub fn isLinkLocal(self: Self) bool {
         return self.address[0] == 169 and self.address[1] == 254;
     }
 
     /// Returns whether an IP Address is a multicast address as defined by [IETF RFC 5771](https://tools.ietf.org/html/rfc5771).
-    pub fn is_multicast(self: Self) bool {
+    pub fn isMulticast(self: Self) bool {
         return switch (self.address[0]) {
             224...239 => true,
             else => false,
@@ -149,12 +149,12 @@ pub const IpV4Address = struct {
     }
 
     /// Returns whether an IP Address is a broadcast address as defined by [IETF RFC 919](https://tools.ietf.org/html/rfc919).
-    pub fn is_broadcast(self: Self) bool {
+    pub fn isBroadcast(self: Self) bool {
         return mem.allEqual(u8, self.address, 255);
     }
 
     /// Returns whether an IP Adress is a documentation address as defined by [IETF RFC 5737](https://tools.ietf.org/html/rfc5737).
-    pub fn is_documentation(self: Self) bool {
+    pub fn isDocumentation(self: Self) bool {
         return switch (self.address[0]) {
             192 => switch (self.address[1]) {
                 0 => switch (self.address[2]) {
@@ -182,10 +182,10 @@ pub const IpV4Address = struct {
     }
 
     /// Returns whether an IP Address is a globally routable address as defined by [the IANA IPv4 Special Registry](https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml).
-    pub fn is_globally_routable(self: Self) bool {
-        return !self.is_private() and !self.is_loopback() and
-            !self.is_link_local() and !self.is_broadcast() and
-            !self.is_documentation() and !self.is_unspecified();
+    pub fn isGloballyRoutable(self: Self) bool {
+        return !self.isPrivate() and !self.isLoopback() and
+            !self.isLinkLocal() and !self.isBroadcast() and
+            !self.isDocumentation() and !self.isUnspecified();
     }
 
     /// Returns whether an IP Address is equal to another.
@@ -194,7 +194,7 @@ pub const IpV4Address = struct {
     }
 
     /// Returns the IP Address as a host byte order u32.
-    pub fn to_host_byte_order(self: Self) u32 {
+    pub fn toHostByteOrder(self: Self) u32 {
         return mem.readVarInt(u32, self.address, builtin.Endian.Big);
     }
 
@@ -245,14 +245,14 @@ pub const IpV6Address = struct {
     /// Create an IP Address from a slice of bytes.
     ///
     /// The slice must be exactly 16 bytes long.
-    pub fn from_slice(address: []u8) Self {
+    pub fn fromSlice(address: []u8) Self {
         debug.assert(address.len == 16);
 
         return Self.init(mem.readVarInt(u16, address[0..2], builtin.Endian.Big), mem.readVarInt(u16, address[2..4], builtin.Endian.Big), mem.readVarInt(u16, address[4..6], builtin.Endian.Big), mem.readVarInt(u16, address[6..8], builtin.Endian.Big), mem.readVarInt(u16, address[8..10], builtin.Endian.Big), mem.readVarInt(u16, address[10..12], builtin.Endian.Big), mem.readVarInt(u16, address[12..14], builtin.Endian.Big), mem.readVarInt(u16, address[14..16], builtin.Endian.Big));
     }
 
     /// Create an IP Address from an array of bytes.
-    pub fn from_array(address: [16]u8) Self {
+    pub fn fromArray(address: [16]u8) Self {
         return Self{
             .address = address,
             .scope_id = null,
@@ -260,14 +260,14 @@ pub const IpV6Address = struct {
     }
 
     /// Create an IP Address from a host byte order u128.
-    pub fn from_host_byte_order(ip: u128) Self {
+    pub fn fromHostByteOrder(ip: u128) Self {
         var address: [16]u8 = undefined;
         mem.writeInt(u128, &address, ip, builtin.Endian.Big);
 
-        return Self.from_array(address);
+        return Self.fromArray(address);
     }
 
-    fn parse_as_many_octets_as_possible(buf: []const u8, parsed_to: *usize) ParseError![]u16 {
+    fn parseAsManyOctetsAsPossible(buf: []const u8, parsed_to: *usize) ParseError![]u16 {
         var octs: [8]u16 = []u16{0} ** 8;
 
         var x: u16 = 0;
@@ -344,7 +344,7 @@ pub const IpV6Address = struct {
         var parsed_to: usize = 0;
         var parsed: Self = undefined;
 
-        const first_part = try Self.parse_as_many_octets_as_possible(buf, &parsed_to);
+        const first_part = try Self.parseAsManyOctetsAsPossible(buf, &parsed_to);
 
         if (first_part.len == 8) {
             // got all octets, meaning there is no empty section within the string
@@ -364,7 +364,7 @@ pub const IpV6Address = struct {
             }
 
             const end_buf = buf[parsed_to + 1 ..];
-            const second_part = try Self.parse_as_many_octets_as_possible(end_buf, &parsed_to);
+            const second_part = try Self.parseAsManyOctetsAsPossible(end_buf, &parsed_to);
 
             std.mem.copy(u16, octs[8 - second_part.len ..], second_part);
 
@@ -390,7 +390,7 @@ pub const IpV6Address = struct {
     }
 
     /// Returns whether there is a scope ID associated with an IP Address.
-    pub fn has_scope_id(self: Self) bool {
+    pub fn hasScopeId(self: Self) bool {
         return self.scope_id != null;
     }
 
@@ -414,49 +414,49 @@ pub const IpV6Address = struct {
     }
 
     /// Returns whether an IP Address is an unspecified address as specified in [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
-    pub fn is_unspecified(self: Self) bool {
+    pub fn isUnspecified(self: Self) bool {
         return mem.allEqual(u8, self.address, 0);
     }
 
     /// Returns whether an IP Address is a loopback address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
-    pub fn is_loopback(self: Self) bool {
+    pub fn isLoopback(self: Self) bool {
         return mem.allEqual(u8, self.address[0..14], 0) and self.address[15] == 1;
     }
 
     /// Returns whether an IP Address is a multicast address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
-    pub fn is_multicast(self: Self) bool {
+    pub fn isMulticast(self: Self) bool {
         return self.address[0] == 0xff and self.address[1] & 0x00 == 0;
     }
 
     /// Returns whether an IP Adress is a documentation address as defined by [IETF RFC 3849](https://tools.ietf.org/html/rfc3849).
-    pub fn is_documentation(self: Self) bool {
+    pub fn isDocumentation(self: Self) bool {
         return self.address[0] == 32 and self.address[1] == 1 and
             self.address[2] == 13 and self.address[3] == 184;
     }
 
     /// Returns whether an IP Address is a multicast and link local address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
-    pub fn is_multicast_link_local(self: Self) bool {
+    pub fn isMulticastLinkLocal(self: Self) bool {
         return self.address[0] == 0xff and self.address[1] & 0x0f == 0x02;
     }
 
     /// Returns whether an IP Address is a deprecated unicast site-local address.
-    pub fn is_unicast_site_local(self: Self) bool {
+    pub fn isUnicastSiteLocal(self: Self) bool {
         return self.address[0] == 0xfe and self.address[1] & 0xc0 == 0xc0;
     }
 
     /// Returns whether an IP Address is a multicast and link local address as defined by [IETF RFC 4291](https://tools.ietf.org/html/rfc4291).
-    pub fn is_unicast_link_local(self: Self) bool {
+    pub fn isUnicastLinkLocal(self: Self) bool {
         return self.address[0] == 0xfe and self.address[1] & 0xc0 == 0x80;
     }
 
     /// Returns whether an IP Address is a unique local address as defined by [IETF RFC 4193](https://tools.ietf.org/html/rfc4193).
-    pub fn is_unique_local(self: Self) bool {
+    pub fn isUniqueLocal(self: Self) bool {
         return self.address[0] & 0xfe == 0xfc;
     }
 
     /// Returns the multicast scope for an IP Address if it is a multicast address.
-    pub fn multicast_scope(self: Self) ?Ipv6MulticastScope {
-        if (!self.is_multicast()) {
+    pub fn multicastScope(self: Self) ?Ipv6MulticastScope {
+        if (!self.isMulticast()) {
             return null;
         }
 
@@ -475,33 +475,33 @@ pub const IpV6Address = struct {
     }
 
     /// Returns whether an IP Address is a globally routable address.
-    pub fn is_globally_routable(self: Self) bool {
-        const scope = self.multicast_scope() orelse return self.is_unicast_global();
+    pub fn isGloballyRoutable(self: Self) bool {
+        const scope = self.multicastScope() orelse return self.isUnicastGlobal();
 
         return scope == Ipv6MulticastScope.Global;
     }
 
     /// Returns whether an IP Address is a globally routable unicast address.
-    pub fn is_unicast_global(self: Self) bool {
-        return !self.is_multicast() and !self.is_loopback() and
-            !self.is_unicast_link_local() and !self.is_unicast_site_local() and
-            !self.is_unique_local() and !self.is_unspecified() and
-            !self.is_documentation();
+    pub fn isUnicastGlobal(self: Self) bool {
+        return !self.isMulticast() and !self.isLoopback() and
+            !self.isUnicastLinkLocal() and !self.isUnicastSiteLocal() and
+            !self.isUniqueLocal() and !self.isUnspecified() and
+            !self.isDocumentation();
     }
 
     /// Returns whether an IP Address is IPv4 compatible.
-    pub fn is_ipv4_compatible(self: Self) bool {
+    pub fn isIpv4Compatible(self: Self) bool {
         return mem.allEqual(u8, self.address[0..12], 0);
     }
 
     /// Returns whether an IP Address is IPv4 mapped.
-    pub fn is_ipv4_mapped(self: Self) bool {
+    pub fn isIpv4Mapped(self: Self) bool {
         return mem.allEqual(u8, self.address[0..10], 0) and
             self.address[10] == 0xff and self.address[11] == 0xff;
     }
 
     /// Returns this IP Address as an IPv4 address if it is an IPv4 compatible or IPv4 mapped address.
-    pub fn to_ipv4(self: Self) ?IpV4Address {
+    pub fn toIpv4(self: Self) ?IpV4Address {
         if (!mem.allEqual(u8, self.address[0..10], 0)) {
             return null;
         }
@@ -521,11 +521,11 @@ pub const IpV6Address = struct {
     }
 
     /// Returns the IP Address as a host byte order u128.
-    pub fn to_host_byte_order(self: Self) u128 {
+    pub fn toHostByteOrder(self: Self) u128 {
         return mem.readVarInt(u128, self.address, builtin.Endian.Big);
     }
 
-    fn fmt_slice(slice: []const u16, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
+    fn fmtSlice(slice: []const u16, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
         if (slice.len == 0) {
             return;
         }
@@ -537,14 +537,14 @@ pub const IpV6Address = struct {
         }
     }
 
-    fn format_address(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
+    fn fmtAddress(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
         if (mem.allEqual(u8, self.address, 0)) {
             return fmt.format(context, Errors, output, "::");
         } else if (mem.allEqual(u8, self.address[0..14], 0) and self.address[15] == 1) {
             return fmt.format(context, Errors, output, "::1");
-        } else if (self.is_ipv4_compatible()) {
+        } else if (self.isIpv4Compatible()) {
             return fmt.format(context, Errors, output, "::{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
-        } else if (self.is_ipv4_mapped()) {
+        } else if (self.isIpv4Mapped()) {
             return fmt.format(context, Errors, output, "::ffff:{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
         } else {
             const segs = self.segments();
@@ -574,11 +574,11 @@ pub const IpV6Address = struct {
             }
 
             if (longest_group_of_zero_length > 0) {
-                try IpV6Address.fmt_slice(segs[0..longest_group_of_zero_at], context, Errors, output);
+                try IpV6Address.fmtSlice(segs[0..longest_group_of_zero_at], context, Errors, output);
 
                 try fmt.format(context, Errors, output, "::");
 
-                try IpV6Address.fmt_slice(segs[longest_group_of_zero_at + longest_group_of_zero_length ..], context, Errors, output);
+                try IpV6Address.fmtSlice(segs[longest_group_of_zero_at + longest_group_of_zero_length ..], context, Errors, output);
             } else {
                 return fmt.format(context, Errors, output, "{x}:{x}:{x}:{x}:{x}:{x}:{x}:{x}", segs[0], segs[1], segs[2], segs[3], segs[4], segs[5], segs[6], segs[7]);
             }
@@ -589,7 +589,7 @@ pub const IpV6Address = struct {
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
     pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
-        try self.format_address(formatString, context, Errors, output);
+        try self.fmtAddress(formatString, context, Errors, output);
 
         if (self.scope_id) |scope| {
             return fmt.format(context, Errors, output, "%{}", scope);
@@ -636,7 +636,7 @@ pub const IpAddress = union(IpAddressType) {
     }
 
     /// Returns whether the IP Address is an IPv4 address.
-    pub fn is_ipv4(self: Self) bool {
+    pub fn isIpv4(self: Self) bool {
         return switch (self) {
             .V4 => true,
             else => false,
@@ -644,7 +644,7 @@ pub const IpAddress = union(IpAddressType) {
     }
 
     /// Returns whether the IP Address is an IPv6 address.
-    pub fn is_ipv6(self: Self) bool {
+    pub fn isIpv6(self: Self) bool {
         return switch (self) {
             .V6 => true,
             else => false,
@@ -652,42 +652,42 @@ pub const IpAddress = union(IpAddressType) {
     }
 
     /// Returns whether an IP Address is an unspecified address.
-    pub fn is_unspecified(self: Self) bool {
+    pub fn isUnspecified(self: Self) bool {
         return switch (self) {
-            .V4 => |a| a.is_unspecified(),
-            .V6 => |a| a.is_unspecified(),
+            .V4 => |a| a.isUnspecified(),
+            .V6 => |a| a.isUnspecified(),
         };
     }
 
     /// Returns whether an IP Address is a loopback address.
-    pub fn is_loopback(self: Self) bool {
+    pub fn isLoopback(self: Self) bool {
         return switch (self) {
-            .V4 => |a| a.is_loopback(),
-            .V6 => |a| a.is_loopback(),
+            .V4 => |a| a.isLoopback(),
+            .V6 => |a| a.isLoopback(),
         };
     }
 
     /// Returns whether an IP Address is a multicast address.
-    pub fn is_multicast(self: Self) bool {
+    pub fn isMulticast(self: Self) bool {
         return switch (self) {
-            .V4 => |a| a.is_multicast(),
-            .V6 => |a| a.is_multicast(),
+            .V4 => |a| a.isMulticast(),
+            .V6 => |a| a.isMulticast(),
         };
     }
 
     /// Returns whether an IP Adress is a documentation address.
-    pub fn is_documentation(self: Self) bool {
+    pub fn isDocumentation(self: Self) bool {
         return switch (self) {
-            .V4 => |a| a.is_documentation(),
-            .V6 => |a| a.is_documentation(),
+            .V4 => |a| a.isDocumentation(),
+            .V6 => |a| a.isDocumentation(),
         };
     }
 
     /// Returns whether an IP Address is a globally routable address.
-    pub fn is_globally_routable(self: Self) bool {
+    pub fn isGloballyRoutable(self: Self) bool {
         return switch (self) {
-            .V4 => |a| a.is_globally_routable(),
-            .V6 => |a| a.is_globally_routable(),
+            .V4 => |a| a.isGloballyRoutable(),
+            .V6 => |a| a.isGloballyRoutable(),
         };
     }
 

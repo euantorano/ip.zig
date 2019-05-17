@@ -10,105 +10,105 @@ test "" {
     _ = @import("./ipv6.zig");
 }
 
-test "IpAddress.is_ipv4()" {
+test "IpAddress.isIpv4()" {
     const ip = IpAddress{
         .V4 = IpV4Address.init(192, 168, 0, 1),
     };
 
-    testing.expect(ip.is_ipv4());
-    testing.expect(ip.is_ipv6() == false);
+    testing.expect(ip.isIpv4());
+    testing.expect(ip.isIpv6() == false);
 }
 
-test "IpAddress.is_ipv6()" {
+test "IpAddress.isIpv6()" {
     const ip = IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
     };
 
-    testing.expect(ip.is_ipv6());
-    testing.expect(ip.is_ipv4() == false);
+    testing.expect(ip.isIpv6());
+    testing.expect(ip.isIpv4() == false);
 }
 
-test "IpAddress.is_unspecified()" {
+test "IpAddress.isUnspecified()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(0, 0, 0, 0),
-    }).is_unspecified());
+    }).isUnspecified());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(192, 168, 0, 1),
-    }).is_unspecified() == false);
+    }).isUnspecified() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0),
-    }).is_unspecified());
+    }).isUnspecified());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-    }).is_unspecified() == false);
+    }).isUnspecified() == false);
 }
 
-test "IpAddress.is_loopback()" {
+test "IpAddress.isLoopback()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(127, 0, 0, 1),
-    }).is_loopback());
+    }).isLoopback());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(192, 168, 0, 1),
-    }).is_loopback() == false);
+    }).isLoopback() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1),
-    }).is_loopback());
+    }).isLoopback());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-    }).is_loopback() == false);
+    }).isLoopback() == false);
 }
 
-test "IpAddress.is_multicast()" {
+test "IpAddress.isMulticast()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(236, 168, 10, 65),
-    }).is_multicast());
+    }).isMulticast());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(172, 16, 10, 65),
-    }).is_multicast() == false);
+    }).isMulticast() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0xff00, 0, 0, 0, 0, 0, 0, 0),
-    }).is_multicast());
+    }).isMulticast());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-    }).is_multicast() == false);
+    }).isMulticast() == false);
 }
 
-test "IpAddress.is_documentation()" {
+test "IpAddress.isDocumentation()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(203, 0, 113, 6),
-    }).is_documentation());
+    }).isDocumentation());
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(193, 34, 17, 19),
-    }).is_documentation() == false);
+    }).isDocumentation() == false);
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0),
-    }).is_documentation());
+    }).isDocumentation());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-    }).is_documentation() == false);
+    }).isDocumentation() == false);
 }
 
-test "IpAddress.is_globally_routable()" {
+test "IpAddress.isGloballyRoutable()" {
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(10, 254, 0, 0),
-    }).is_globally_routable() == false);
+    }).isGloballyRoutable() == false);
     testing.expect((IpAddress{
         .V4 = IpV4Address.init(80, 9, 12, 3),
-    }).is_globally_routable());
+    }).isGloballyRoutable());
 
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0xffff, 0xc00a, 0x2ff),
-    }).is_globally_routable());
+    }).isGloballyRoutable());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0x1c9, 0, 0, 0xafc8, 0, 0x1),
-    }).is_globally_routable());
+    }).isGloballyRoutable());
     testing.expect((IpAddress{
         .V6 = IpV6Address.init(0, 0, 0, 0, 0, 0, 0, 0x1),
-    }).is_globally_routable() == false);
+    }).isGloballyRoutable() == false);
 }
 
 test "IpAddress.equals()" {
@@ -125,7 +125,7 @@ test "IpAddress.equals()" {
     }).equals(IpAddress{ .V4 = IpV4Address.init(127, 0, 0, 1) }) == false);
 }
 
-fn test_format_ip_address(address: IpAddress, expected: []const u8) !void {
+fn testFormatIpAddress(address: IpAddress, expected: []const u8) !void {
     var buffer: [1024]u8 = undefined;
     const buf = buffer[0..];
 
@@ -135,10 +135,10 @@ fn test_format_ip_address(address: IpAddress, expected: []const u8) !void {
 }
 
 test "IpAddress.format()" {
-    try test_format_ip_address(IpAddress{
+    try testFormatIpAddress(IpAddress{
         .V4 = IpV4Address.init(192, 168, 0, 1),
     }, "192.168.0.1");
-    try test_format_ip_address(IpAddress{
+    try testFormatIpAddress(IpAddress{
         .V6 = IpV6Address.init(0x2001, 0xdb8, 0x85a3, 0x8d3, 0x1319, 0x8a2e, 0x370, 0x7348),
     }, "2001:db8:85a3:8d3:1319:8a2e:370:7348");
 }
