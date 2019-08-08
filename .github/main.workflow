@@ -1,10 +1,10 @@
 workflow "Build and test on pull request" {
-  resolves = ["Test With Zig Master"]
+  resolves = ["Print Zig Version", "Test With Zig Master"]
   on = "pull_request"
 }
 
 workflow "Build and test on push" {
-  resolves = ["Test With Zig Master"]
+  resolves = ["Print Zig Version", "Test With Zig Master"]
   on = "push"
 }
 
