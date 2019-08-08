@@ -8,6 +8,11 @@ workflow "Build and test on push" {
   on = "push"
 }
 
+action "Print Zig Version" {
+	uses = "docker://euantorano/zig:master"
+	args = "version"
+}
+
 action "Test With Zig Master" {
   uses = "docker://euantorano/zig:master"
   args = "build test"
