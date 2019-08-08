@@ -2,7 +2,6 @@ const std = @import("std");
 const debug = std.debug;
 const mem = std.mem;
 const builtin = @import("builtin");
-const fmt = std.fmt;
 const testing = std.testing;
 
 /// Errors that can occur when parsing an IP Address.
@@ -27,7 +26,7 @@ pub const IpV4Address = struct {
     /// Create an IP Address with the given octets.
     pub fn init(a: u8, b: u8, c: u8, d: u8) Self {
         return Self{
-            .address = []u8{
+            .address = [_]u8{
                 a,
                 b,
                 c,
@@ -62,7 +61,7 @@ pub const IpV4Address = struct {
 
     /// Parse an IP Address from a string representation.
     pub fn parse(buf: []const u8) ParseError!Self {
-        var octs: [4]u8 = []u8{0} ** 4;
+        var octs: [4]u8 = [_]u8{0} ** 4;
 
         var octets_index: usize = 0;
         var any_digits: bool = false;
@@ -201,8 +200,24 @@ pub const IpV4Address = struct {
     /// Formats the IP Address using the given format string and context.
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
-    pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
-        return fmt.format(context, Errors, output, "{}.{}.{}.{}", self.address[0], self.address[1], self.address[2], self.address[3]);
+    pub fn format(
+        self: Self, 
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        context: var,
+        comptime Errors: type,
+        output: fn (@typeOf(context), []const u8) Errors!void,
+    ) Errors!void {
+        return std.fmt.format(
+            context, 
+            Errors, 
+            output, 
+            "{}.{}.{}.{}", 
+            self.address[0], 
+            self.address[1], 
+            self.address[2], 
+            self.address[3],
+        );
     }
 };
 
@@ -268,7 +283,7 @@ pub const IpV6Address = struct {
     }
 
     fn parseAsManyOctetsAsPossible(buf: []const u8, parsed_to: *usize) ParseError![]u16 {
-        var octs: [8]u16 = []u16{0} ** 8;
+        var octs: [8]u16 = [_]u16{0} ** 8;
 
         var x: u16 = 0;
         var any_digits: bool = false;
@@ -357,7 +372,7 @@ pub const IpV6Address = struct {
             }
 
             // create new array by combining first and second part
-            var octs: [8]u16 = []u16{0} ** 8;
+            var octs: [8]u16 = [_]u16{0} ** 8;
 
             if (first_part.len > 0) {
                 std.mem.copy(u16, octs[0..first_part.len], first_part);
@@ -525,27 +540,38 @@ pub const IpV6Address = struct {
         return mem.readVarInt(u128, self.address, builtin.Endian.Big);
     }
 
-    fn fmtSlice(slice: []const u16, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
+    fn fmtSlice(
+        slice: []const u16, 
+        context: var, 
+        comptime Errors: type, 
+        output: fn (@typeOf(context), []const u8) Errors!void,
+    ) Errors!void {
         if (slice.len == 0) {
             return;
         }
 
-        try fmt.format(context, Errors, output, "{x}", slice[0]);
+        try std.fmt.format(context, Errors, output, "{x}", slice[0]);
 
         for (slice[1..]) |segment| {
-            try fmt.format(context, Errors, output, ":{x}", segment);
+            try std.fmt.format(context, Errors, output, ":{x}", segment);
         }
     }
 
-    fn fmtAddress(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
+    fn fmtAddress(
+        self: Self, comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        context: var,
+        comptime Errors: type,
+        output: fn (@typeOf(context), []const u8) Errors!void,
+    ) Errors!void {
         if (mem.allEqual(u8, self.address, 0)) {
-            return fmt.format(context, Errors, output, "::");
+            return std.fmt.format(context, Errors, output, "::");
         } else if (mem.allEqual(u8, self.address[0..14], 0) and self.address[15] == 1) {
-            return fmt.format(context, Errors, output, "::1");
+            return std.fmt.format(context, Errors, output, "::1");
         } else if (self.isIpv4Compatible()) {
-            return fmt.format(context, Errors, output, "::{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
+            return std.fmt.format(context, Errors, output, "::{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
         } else if (self.isIpv4Mapped()) {
-            return fmt.format(context, Errors, output, "::ffff:{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
+            return std.fmt.format(context, Errors, output, "::ffff:{}.{}.{}.{}", self.address[12], self.address[13], self.address[14], self.address[15]);
         } else {
             const segs = self.segments();
 
@@ -576,11 +602,11 @@ pub const IpV6Address = struct {
             if (longest_group_of_zero_length > 0) {
                 try IpV6Address.fmtSlice(segs[0..longest_group_of_zero_at], context, Errors, output);
 
-                try fmt.format(context, Errors, output, "::");
+                try std.fmt.format(context, Errors, output, "::");
 
                 try IpV6Address.fmtSlice(segs[longest_group_of_zero_at + longest_group_of_zero_length ..], context, Errors, output);
             } else {
-                return fmt.format(context, Errors, output, "{x}:{x}:{x}:{x}:{x}:{x}:{x}:{x}", segs[0], segs[1], segs[2], segs[3], segs[4], segs[5], segs[6], segs[7]);
+                return std.fmt.format(context, Errors, output, "{x}:{x}:{x}:{x}:{x}:{x}:{x}:{x}", segs[0], segs[1], segs[2], segs[3], segs[4], segs[5], segs[6], segs[7]);
             }
         }
     }
@@ -588,11 +614,24 @@ pub const IpV6Address = struct {
     /// Formats the IP Address using the given format string and context.
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
-    pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
-        try self.fmtAddress(formatString, context, Errors, output);
+    pub fn format(
+        self: Self, 
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        context: var,
+        comptime Errors: type,
+        output: fn (@typeOf(context), []const u8) Errors!void,
+    ) Errors!void {
+        try self.fmtAddress(fmt, options, context, Errors, output);
 
         if (self.scope_id) |scope| {
-            return fmt.format(context, Errors, output, "%{}", scope);
+            return std.fmt.format(
+                context, 
+                Errors, 
+                output, 
+                "%{}", 
+                scope
+            );
         }
     }
 };
@@ -712,10 +751,17 @@ pub const IpAddress = union(IpAddressType) {
     /// Formats the IP Address using the given format string and context.
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
-    pub fn format(self: Self, comptime formatString: []const u8, context: var, comptime Errors: type, output: fn (@typeOf(context), []const u8) Errors!void) Errors!void {
+    pub fn format(
+        self: Self, 
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        context: var,
+        comptime Errors: type,
+        output: fn (@typeOf(context), []const u8) Errors!void,
+    ) Errors!void {
         return switch (self) {
-            .V4 => |a| a.format(formatString, context, Errors, output),
-            .V6 => |a| a.format(formatString, context, Errors, output),
+            .V4 => |a| a.format(fmt, options, context, Errors, output),
+            .V6 => |a| a.format(fmt, options, context, Errors, output),
         };
     }
 };
