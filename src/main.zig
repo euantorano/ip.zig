@@ -56,7 +56,7 @@ pub const IpV4Address = struct {
         var address: [4]u8 = undefined;
         mem.writeInt(u32, &address, ip, builtin.Endian.Big);
 
-        return Self.fromSlice(&address);
+        return Self.fromArray(address);
     }
 
     /// Parse an IP Address from a string representation.
@@ -201,7 +201,7 @@ pub const IpV4Address = struct {
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
     pub fn format(
-        self: Self, 
+        self: Self,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         context: var,
@@ -209,13 +209,13 @@ pub const IpV4Address = struct {
         output: fn (@typeOf(context), []const u8) Errors!void,
     ) Errors!void {
         return std.fmt.format(
-            context, 
-            Errors, 
-            output, 
-            "{}.{}.{}.{}", 
-            self.address[0], 
-            self.address[1], 
-            self.address[2], 
+            context,
+            Errors,
+            output,
+            "{}.{}.{}.{}",
+            self.address[0],
+            self.address[1],
+            self.address[2],
             self.address[3],
         );
     }
@@ -541,9 +541,9 @@ pub const IpV6Address = struct {
     }
 
     fn fmtSlice(
-        slice: []const u16, 
-        context: var, 
-        comptime Errors: type, 
+        slice: []const u16,
+        context: var,
+        comptime Errors: type,
         output: fn (@typeOf(context), []const u8) Errors!void,
     ) Errors!void {
         if (slice.len == 0) {
@@ -558,7 +558,8 @@ pub const IpV6Address = struct {
     }
 
     fn fmtAddress(
-        self: Self, comptime fmt: []const u8,
+        self: Self,
+        comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         context: var,
         comptime Errors: type,
@@ -615,7 +616,7 @@ pub const IpV6Address = struct {
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
     pub fn format(
-        self: Self, 
+        self: Self,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         context: var,
@@ -625,13 +626,7 @@ pub const IpV6Address = struct {
         try self.fmtAddress(fmt, options, context, Errors, output);
 
         if (self.scope_id) |scope| {
-            return std.fmt.format(
-                context, 
-                Errors, 
-                output, 
-                "%{}", 
-                scope
-            );
+            return std.fmt.format(context, Errors, output, "%{}", scope);
         }
     }
 };
@@ -752,7 +747,7 @@ pub const IpAddress = union(IpAddressType) {
     ///
     /// This is used by the `std.fmt` module to format an IP Address within a format string.
     pub fn format(
-        self: Self, 
+        self: Self,
         comptime fmt: []const u8,
         options: std.fmt.FormatOptions,
         context: var,
