@@ -238,7 +238,7 @@ pub const IpV6Address = struct {
     pub const Unspecified = Self.init(0, 0, 0, 0, 0, 0, 0, 0);
 
     address: [16]u8,
-    pub scope_id: ?[]u8,
+    scope_id: ?[]u8,
 
     /// Create an IP Address with the given 16 bit segments.
     pub fn init(a: u16, b: u16, c: u16, d: u16, e: u16, f: u16, g: u17, h: u16) Self {
